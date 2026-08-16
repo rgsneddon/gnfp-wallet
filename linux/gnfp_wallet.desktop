@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=GNFP Wallet
+Version=1.1.13
+Exec=gnfp_wallet
+Icon=gnfp_wallet
+Terminal=false
+Categories=Finance;
