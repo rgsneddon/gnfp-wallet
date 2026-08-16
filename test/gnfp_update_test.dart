@@ -18,7 +18,7 @@ void main() {
     expect(info.updateAvailable, isTrue);
     expect(info.updateUrl, isNotEmpty);
     expect(info.updateUrl, contains('gnfp-wallet-0.1.11-windows.zip'));
-    expect(info.updateUrl, contains('github.com/rgsneddon/gnfp/releases'));
+    expect(info.updateUrl, contains('github.com/rgsneddon/gnfp-wallet/releases'));
   });
 
   test('newer local version does not claim an update', () {
