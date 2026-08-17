@@ -7,6 +7,13 @@ import '../gnfp_ledger.dart';
 import '../gnfp_qr.dart';
 import '../gnfp_theme.dart';
 
+const gnfpCreditAdded = 'mined coins added to your balance';
+const gnfpCreditNone = 'this address has no mined coins to add';
+
+/// Only two user-facing credit results. Errors map to [gnfpCreditNone].
+String creditWalletPhrase({required bool added}) =>
+    added ? gnfpCreditAdded : gnfpCreditNone;
+
 class WalletScreen extends StatefulWidget {
   const WalletScreen({
     super.key,
@@ -67,14 +74,12 @@ class _WalletScreenState extends State<WalletScreen> {
       final tx = await widget.ledger.creditFromMiner(to: widget.address);
       if (!mounted) return;
       setState(() {
-        creditStatus = tx.amount > 0
-            ? 'credited from your miner +${tx.amount} $gnfpTicker'
-            : 'miner book already in wallet';
+        creditStatus = creditWalletPhrase(added: tx.amount > 0);
       });
       await _pullNetwork();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      setState(() => creditStatus = e.toString());
+      setState(() => creditStatus = creditWalletPhrase(added: false));
     }
   }
 
@@ -251,7 +256,6 @@ class _WalletScreenState extends State<WalletScreen> {
                                 child: CopyableAddress(
                                   key: const Key('gnfp-address'),
                                   address: widget.address.value,
-                                  label: 'Address:',
                                 ),
                               ),
                             ),
@@ -339,8 +343,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 ),
                 if (status.isNotEmpty) Text(status, key: const Key('gnfp-wallet-status')),
-                if (creditStatus.isNotEmpty)
-                  Text(creditStatus, key: const Key('gnfp-credit-status')),
+                Text(creditStatus, key: const Key('gnfp-credit-status')),
               ],
             ),
           ),

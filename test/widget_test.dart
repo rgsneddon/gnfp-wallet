@@ -30,7 +30,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: GnfpLedger(),
-        version: '0.0.4',
+        version: '0.0.5',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
@@ -42,8 +42,9 @@ void main() {
     expect(app.theme!.colorScheme.primary, GnfpTheme.neonCyan);
     expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.black);
     expect(find.textContaining('GNFP'), findsWidgets);
-    expect(find.text('GNFPv0.0.4'), findsOneWidget);
+    expect(find.text('GNFPv0.0.5'), findsOneWidget);
     expect(find.byKey(const Key('gnfp-update-banner')), findsNothing);
+    expect(find.byKey(const Key('gnfp-update-url')), findsNothing);
     expect(find.text('Wallet'), findsWidgets);
     expect(find.text('Explorer'), findsWidgets);
     expect(find.text('Backup'), findsWidgets);
@@ -72,7 +73,7 @@ void main() {
     }
 
     expectPaintsFull(find.text('GNFP Wallet'), 'GNFP Wallet');
-    expectPaintsFull(find.byKey(const Key('gnfp-version')), 'GNFPv0.0.4');
+    expectPaintsFull(find.byKey(const Key('gnfp-version')), 'GNFPv0.0.5');
 
     await tester.tap(find.byIcon(Icons.account_balance_wallet));
     await tester.pump();
@@ -93,6 +94,7 @@ void main() {
     expect(find.byKey(const Key('gnfp-qr-popup')), findsNothing);
     expect(find.byKey(const Key('gnfp-send')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-address')), findsOneWidget);
+    expect(find.textContaining('Address:'), findsNothing);
     expect(find.byKey(const Key('gnfp-mine-receive')), findsNothing);
     expect(find.byKey(const Key('gnfp-receive')), findsNothing);
     expect(find.text('Receive'), findsNothing);
@@ -129,7 +131,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: ledger,
-        version: '0.0.4',
+        version: '0.0.5',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
@@ -253,6 +255,10 @@ void main() {
     expect(
       find.textContaining('gnfp-wallet-0.1.11-windows.zip'),
       findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('gnfp-update-banner'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(const Key('gnfp-box-identity'))).dy),
     );
     expect(find.text('Register / login'), findsNothing);
   });

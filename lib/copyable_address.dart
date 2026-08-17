@@ -6,7 +6,7 @@ class CopyableAddress extends StatelessWidget {
   const CopyableAddress({
     super.key,
     required this.address,
-    this.label = 'Address',
+    this.label = '',
     this.onCopied,
   });
 
@@ -24,7 +24,7 @@ class CopyableAddress extends StatelessWidget {
       children: [
         Expanded(
           child: SelectableText(
-            '$label $address',
+            label.trim().isEmpty ? address : '$label $address',
             key: const Key('gnfp-address-text'),
             style: const TextStyle(
               color: Color(0xFF00E5FF),

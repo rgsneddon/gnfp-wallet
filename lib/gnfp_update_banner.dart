@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'gnfp_theme.dart';
 import 'gnfp_update.dart';
@@ -16,45 +15,33 @@ class GnfpUpdateBanner extends StatelessWidget {
       return const SizedBox.shrink();
     }
     return Material(
-      color: Colors.transparent,
+      color: GnfpTheme.black,
       child: Container(
         key: const Key('gnfp-update-banner'),
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: GnfpTheme.navyCard,
-          borderRadius: BorderRadius.circular(GnfpTheme.radius),
-          border: Border.all(color: GnfpTheme.neonCyan.withValues(alpha: 0.45)),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0A0A0A),
+          border: Border(bottom: BorderSide(color: GnfpTheme.neonCyan)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Update ready — ${info.publishedVersion} is published '
-              '(you have ${info.localVersion}).',
+              'A newer wallet is available (v${info.publishedVersion}). Download for this platform:',
               style: const TextStyle(
                 color: GnfpTheme.cream,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
               ),
             ),
-            const SizedBox(height: 8),
             SelectableText(
               info.updateUrl,
               key: const Key('gnfp-update-url'),
               style: const TextStyle(
                 color: GnfpTheme.neonCyan,
                 fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton(
-                key: const Key('gnfp-update-open'),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: info.updateUrl));
-                },
-                child: const Text('Copy update link'),
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

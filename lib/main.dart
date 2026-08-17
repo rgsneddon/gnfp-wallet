@@ -117,12 +117,14 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         decoration: const BoxDecoration(gradient: GnfpTheme.shellGradient),
         child: Scaffold(
           backgroundColor: GnfpTheme.black,
-          body: !ready
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
+          body: Column(
                   children: [
                     if (updateInfo != null) GnfpUpdateBanner(info: updateInfo!),
-                    Expanded(child: pages[index]),
+                    Expanded(
+                      child: !ready
+                          ? const Center(child: CircularProgressIndicator())
+                          : pages[index],
+                    ),
                   ],
                 ),
           bottomNavigationBar: NavigationBar(
