@@ -31,7 +31,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Timer? _retry;
 
   String get minerCommand =>
-      'perc-mine --pool $gnfpStratum --user ${widget.address.value} --coin GNFP --notls';
+      'gnfp-mine --pool $gnfpStratum --user ${widget.address.value}.worker --threads 4';
 
   @override
   void initState() {

@@ -20,15 +20,29 @@ class PoolHandle {
   }
 }
 
-Future<PoolHandle> startShippedPool() async {
+File shippedWalletHttp() {
   final here = Directory.current;
-  final root = here.path.endsWith('wallet') ? here.parent : here;
-  final script = File('${root.path}${Platform.pathSeparator}scripts${Platform.pathSeparator}wallet_http.mjs');
+  final sep = Platform.pathSeparator;
+  final candidates = <File>[
+    File('${here.parent.path}${sep}scripts${sep}wallet_http.mjs'),
+    File('${here.path}${sep}scripts${sep}wallet_http.mjs'),
+    File('${here.parent.path}${sep}gnfp${sep}scripts${sep}wallet_http.mjs'),
+    File('${here.parent.parent.path}${sep}gnfp${sep}scripts${sep}wallet_http.mjs'),
+  ];
+  return candidates.firstWhere(
+    (f) => f.existsSync(),
+    orElse: () => candidates.first,
+  );
+}
+
+Future<PoolHandle> startShippedPool() async {
+  final script = shippedWalletHttp();
   expect(script.existsSync(), isTrue, reason: 'shipped ${script.path}');
+  final root = script.parent.parent.path;
   final proc = await Process.start(
     'node',
     [script.path],
-    workingDirectory: root.path,
+    workingDirectory: root,
   );
   final line = await proc.stdout
       .transform(utf8.decoder)

@@ -13,12 +13,9 @@ import 'package:gnfp_wallet/gnfp_version.dart';
 
 import 'pool_harness.dart';
 
-/// Official Perc/GNFP BeamHash III vector — test-only miner-book seed, not a UI mint.
-const bh3PreWork =
-    '990504d96fba29cfd6d9c2f3f8663e511fca10758f33c1e4dea443bbe6c5aac0';
-const bh3Nonce = '89c94dfd09620712';
-const bh3Solution =
-    'a4eb00a087831aa944d914c2d500b920b74bb86c9f3a1de38b9a0c5d3c18802ed66c6be4494c0cf7ac4b72e18e6a6ee2e4e842e323f6d8df0367df5b8e36bbd057adf9ec3b1817395ac98b481829fef5c247372eb65acbbed65d64d52e17a0bf9b956bff00000000';
+/// CPU work-hash the live book accepts (empty output, 16-hex nonce).
+const cpuPreWork = 'gnfp-wallet-seed';
+const cpuNonce = '0000000000000006';
 
 Future<GnfpTx> seedMinerBook(
   GnfpLedger ledger,
@@ -28,9 +25,9 @@ Future<GnfpTx> seedMinerBook(
   return ledger.miningReceive(
     to: to,
     amount: amount,
-    nonce: bh3Nonce,
-    solution: bh3Solution,
-    preWork: bh3PreWork,
+    nonce: cpuNonce,
+    solution: '',
+    preWork: cpuPreWork,
   );
 }
 
@@ -83,7 +80,7 @@ void main() {
     expect(ledger.balance(a), 7);
     expect(ledger.balance(b), 3);
     expect(gnfpTicker, 'GNFP');
-    expect(gnfpStratum, contains('god.restoreprivacy.online:1474'));
+    expect(gnfpStratum, contains('de.restoreprivacy.online:1474'));
     expect(await ledger.pool.balance(b.value), 3);
   });
 

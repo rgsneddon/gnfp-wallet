@@ -16,7 +16,7 @@ const gnfpTicker = 'GNFP';
 const gnfpAddressPrefix = 'gnfp1';
 const gnfpStratum = 'de.restoreprivacy.online:1474';
 const gnfpPoolUrl = 'https://gnfp.restoreprivacy.online';
-/// Helsinki perc-mine --user payout. Miner credit reads this book, not the faucet.
+/// Live gnfp-mine payout address. Miner credit reads this book, not a faucet.
 const gnfpMinerPayout = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
 
 class GnfpAddress {
@@ -161,8 +161,6 @@ class GnfpLedger {
     }
     if (nonce == null ||
         nonce.isEmpty ||
-        solution == null ||
-        solution.isEmpty ||
         preWork == null ||
         preWork.isEmpty) {
       throw StateError('proof_required');

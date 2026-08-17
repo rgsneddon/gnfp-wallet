@@ -12,45 +12,66 @@ class GnfpPoolClient {
 
   final String baseUrl;
   final HttpClient _http;
+  static const bookFallback = 'https://explorer.restoreprivacy.online';
 
-  Uri _uri(String path) {
-    final root = baseUrl.endsWith('/')
-        ? baseUrl.substring(0, baseUrl.length - 1)
-        : baseUrl;
+  Uri _uri(String path, {String? origin}) {
+    final base = origin ?? baseUrl;
+    final trimmed = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
     final tail = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('$root$tail');
+    return Uri.parse('$trimmed$tail');
+  }
+
+  bool _needsBook(String path) =>
+      path.contains('/wallet/') || path.contains('/bridge/');
+
+  bool _isMissing(int status, Map<String, dynamic> json) =>
+      status == 404 || json['reason']?.toString() == 'not_found';
+
+  Future<Map<String, dynamic>> _read(HttpClientResponse res) async {
+    final text = await utf8.decodeStream(res);
+    final json = jsonDecode(text);
+    if (json is! Map<String, dynamic>) {
+      throw StateError('bad GNFP pool response');
+    }
+    return json;
   }
 
   Future<Map<String, dynamic>> get(String path) async {
-    final req = await _http.getUrl(_uri(path));
-    req.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
-    final res = await req.close();
-    final text = await utf8.decodeStream(res);
-    final json = jsonDecode(text);
-    if (json is! Map<String, dynamic>) {
-      throw StateError('bad GNFP pool response');
+    Future<({int status, Map<String, dynamic> json})> hit(String origin) async {
+      final req = await _http.getUrl(_uri(path, origin: origin));
+      req.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+      final res = await req.close();
+      return (status: res.statusCode, json: await _read(res));
     }
-    if (res.statusCode >= 400) {
-      throw StateError(json['reason']?.toString() ?? 'pool error');
+
+    var got = await hit(baseUrl);
+    if (_needsBook(path) && _isMissing(got.status, got.json) && baseUrl != bookFallback) {
+      got = await hit(bookFallback);
     }
-    return json;
+    if (got.status >= 400) {
+      throw StateError(got.json['reason']?.toString() ?? 'pool error');
+    }
+    return got.json;
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
-    final req = await _http.postUrl(_uri(path));
-    req.headers.contentType = ContentType.json;
-    req.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
-    req.add(utf8.encode(jsonEncode(body)));
-    final res = await req.close();
-    final text = await utf8.decodeStream(res);
-    final json = jsonDecode(text);
-    if (json is! Map<String, dynamic>) {
-      throw StateError('bad GNFP pool response');
+    Future<({int status, Map<String, dynamic> json})> hit(String origin) async {
+      final req = await _http.postUrl(_uri(path, origin: origin));
+      req.headers.contentType = ContentType.json;
+      req.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+      req.add(utf8.encode(jsonEncode(body)));
+      final res = await req.close();
+      return (status: res.statusCode, json: await _read(res));
     }
-    if (res.statusCode >= 400 || json['ok'] == false) {
-      throw StateError(json['reason']?.toString() ?? 'pool error');
+
+    var got = await hit(baseUrl);
+    if (_needsBook(path) && _isMissing(got.status, got.json) && baseUrl != bookFallback) {
+      got = await hit(bookFallback);
     }
-    return json;
+    if (got.status >= 400 || got.json['ok'] == false) {
+      throw StateError(got.json['reason']?.toString() ?? 'pool error');
+    }
+    return got.json;
   }
 
   Future<Map<String, dynamic>> receive({

@@ -65,6 +65,9 @@ void main() {
     expect(find.text('Receive'), findsNothing);
     expect(find.text('Mining receive'), findsNothing);
     expect(find.byKey(const Key('gnfp-receive-hint')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-miner-cmd')), findsOneWidget);
+    expect(find.textContaining('gnfp-mine --pool de.restoreprivacy.online:1474'), findsOneWidget);
+    expect(find.textContaining('perc-mine'), findsNothing);
 
     await tester.tap(find.byIcon(Icons.payments));
     await tester.pump();
