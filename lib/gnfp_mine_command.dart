@@ -78,11 +78,40 @@ const gnfpMinePools = <GnfpMinePool>[
   ),
 ];
 
+const gnfpMineCustomPoolId = 'custom';
+
 GnfpMinePool gnfpMinePoolByHost(String hostPort) {
+  final host = normalizeMinePoolHost(hostPort);
   for (final p in gnfpMinePools) {
-    if (p.hostPort == hostPort) return p;
+    if (p.hostPort == host) return p;
   }
-  return gnfpMinePools.first;
+  if (host.isEmpty) return gnfpMinePools.first;
+  return GnfpMinePool(
+    id: gnfpMineCustomPoolId,
+    hostPort: host,
+    label: 'Custom pool',
+    tls: defaultTlsForPool(host),
+  );
+}
+
+/// Accept host, host:port, or stratum URL. Empty stays empty.
+String normalizeMinePoolHost(String raw) {
+  var s = raw.trim();
+  if (s.isEmpty) return '';
+  s = s.replaceFirst(RegExp(r'^(stratum\+)?(ssl|tcp):\/\/', caseSensitive: false), '');
+  s = s.replaceFirst(RegExp(r'^https?:\/\/', caseSensitive: false), '');
+  if (s.endsWith('/')) s = s.substring(0, s.length - 1);
+  if (!s.contains(':')) s = '$s:1474';
+  return s;
+}
+
+/// Public restoreprivacy hosts and other remote pools use TLS.
+/// Loopback is plaintext unless the caller asked for TLS.
+bool defaultTlsForPool(String pool) {
+  if (isPublicGnfpPool(pool)) return true;
+  final host = pool.trim().toLowerCase().split(':').first;
+  if (host == '127.0.0.1' || host == 'localhost' || host == '::1') return false;
+  return true;
 }
 
 class WalletMineCommand {

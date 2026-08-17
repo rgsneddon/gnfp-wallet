@@ -66,3 +66,36 @@ bool hashMeetsJob(Map<String, dynamic> job, String nonce, [String solution = '']
 String nextCpuNonce(int counter) {
   return normalizeCpuNonce(counter.toRadixString(16));
 }
+
+class HashRangeResult {
+  const HashRangeResult({
+    required this.hashes,
+    required this.shares,
+    required this.nextNonce,
+  });
+
+  final int hashes;
+  final List<String> shares;
+  final int nextNonce;
+}
+
+/// Hash [count] nonces from [start], stepping by [stride] (one worker's slice).
+HashRangeResult hashNonceRange(
+  Map<String, dynamic> job,
+  int start,
+  int count, [
+  int stride = 1,
+]) {
+  final shares = <String>[];
+  var nonce = start < 0 ? 0 : start;
+  final step = stride < 1 ? 1 : stride;
+  final n = count < 0 ? 0 : count;
+  for (var i = 0; i < n; i += 1) {
+    final hex = nextCpuNonce(nonce);
+    nonce += step;
+    if (hex.isNotEmpty && hashMeetsJob(job, hex)) {
+      shares.add(hex);
+    }
+  }
+  return HashRangeResult(hashes: n, shares: shares, nextNonce: nonce);
+}

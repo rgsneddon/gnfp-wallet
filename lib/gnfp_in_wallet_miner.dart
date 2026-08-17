@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'gnfp_cpu_hash.dart';
+import 'gnfp_hash_farm.dart';
 import 'gnfp_mine_command.dart';
 
 class InWalletMinerStatus {
@@ -36,24 +37,35 @@ class InWalletMiner {
   InWalletMiner({
     this.connect,
     this.maxHashesPerTick = 256,
+    this.reconnectDelay = const Duration(seconds: 2),
+    this.statsEvery = const Duration(seconds: 1),
   });
 
   final SecureConnect? connect;
   final int maxHashesPerTick;
+  final Duration reconnectDelay;
+  final Duration statsEvery;
 
   Socket? _sock;
   Timer? _tick;
+  Timer? _stats;
+  Timer? _reconnect;
+  GnfpHashFarm? _farm;
   String _buf = '';
   Map<String, dynamic>? _job;
   WalletMineCommand? _cmd;
   DateTime? _started;
+  DateTime? _lastEmit;
   int _nonce = 0;
   int _accepted = 0;
   int _rejected = 0;
   int _hashes = 0;
   int _height = 0;
   String _error = '';
+  bool _wantRun = false;
   bool _running = false;
+  bool _holdSubmit = false;
+  bool _hashing = false;
   final _updates = StreamController<InWalletMinerStatus>.broadcast();
 
   Stream<InWalletMinerStatus> get updates => _updates.stream;
@@ -80,14 +92,57 @@ class InWalletMiner {
   Future<InWalletMinerStatus> start(WalletMineCommand cmd) async {
     await stop();
     _cmd = cmd;
+    _wantRun = true;
     _running = true;
     _error = '';
     _accepted = 0;
     _rejected = 0;
     _hashes = 0;
     _nonce = 0;
+    _holdSubmit = false;
     _started = DateTime.now();
+    _emit(force: true);
+    await _startFarm(cmd.threads);
+    await _openSocket();
+    return status;
+  }
+
+  Future<void> _startFarm(int threads) async {
+    await _farm?.stop();
+    _farm = null;
+    final farm = GnfpHashFarm(
+      batchSize: maxHashesPerTick < 1 ? 1 : maxHashesPerTick,
+      onHashed: _onFarmHashed,
+      onShare: _onFarmShare,
+    );
+    try {
+      await farm.start(threads);
+      if (!_wantRun) {
+        await farm.stop();
+        return;
+      }
+      _farm = farm;
+    } catch (_) {
+      await farm.stop();
+      _farm = null;
+    }
+  }
+
+  void _onFarmHashed(int n) {
+    if (!_wantRun || n <= 0) return;
+    _hashes += n;
     _emit();
+  }
+
+  void _onFarmShare(String nonce, Map<String, dynamic> job) {
+    _submitShare(nonce, job);
+  }
+
+  Future<void> _openSocket() async {
+    if (!_wantRun) return;
+    final cmd = _cmd;
+    if (cmd == null) return;
+    _tearSocket();
     try {
       final parts = cmd.pool.split(':');
       final host = parts.first;
@@ -104,7 +159,10 @@ class InWalletMiner {
       } else {
         _sock = await Socket.connect(host, port);
       }
-      _sock!.listen(_onData, onError: (e) => _fail('$e'), onDone: stop);
+      try {
+        _sock!.setOption(SocketOption.tcpNoDelay, true);
+      } catch (_) {}
+      _sock!.listen(_onData, onError: _onSockError, onDone: _onSockDone);
       _send({
         'method': 'login',
         'login': cmd.user,
@@ -114,31 +172,103 @@ class InWalletMiner {
         'id': 1,
         'jsonrpc': '2.0',
       });
-      _tick = Timer.periodic(const Duration(milliseconds: 20), (_) => _hashTick());
+      if (_farm == null || !_farm!.isRunning) {
+        _tick = Timer.periodic(const Duration(milliseconds: 20), (_) => _hashTick());
+      }
+      _stats = Timer.periodic(statsEvery, (_) => _sendStats());
+      _error = '';
+      _running = true;
+      if (_job != null) _farm?.setJob(_job!);
+      _emit(force: true);
     } catch (e) {
-      _fail('$e');
+      _scheduleReconnect('$e');
     }
-    return status;
+  }
+
+  void _sendStats() {
+    final cmd = _cmd;
+    if (!_wantRun || cmd == null || _sock == null) return;
+    _send({
+      'method': 'stats',
+      'login': cmd.user,
+      'threads': cmd.threads,
+      'client': gnfpMineClient,
+      'version': gnfpMineVersion,
+      'jsonrpc': '2.0',
+    });
+  }
+
+  void _onSockError(Object e) {
+    if (!_wantRun) {
+      _fail('$e');
+      return;
+    }
+    _scheduleReconnect('');
+  }
+
+  void _onSockDone() {
+    if (!_wantRun) return;
+    _scheduleReconnect('');
+  }
+
+  void _scheduleReconnect(String err) {
+    _tearSocket();
+    if (!_wantRun) return;
+    // Stay running. lastError only when a reconnect open actually fails.
+    if (err.isNotEmpty) {
+      _error = err;
+    }
+    _running = true;
+    _reconnect?.cancel();
+    _reconnect = Timer(reconnectDelay, () {
+      if (_wantRun) unawaited(_openSocket());
+    });
+    _emit();
+  }
+
+  void _tearSocket() {
+    _tick?.cancel();
+    _tick = null;
+    _stats?.cancel();
+    _stats = null;
+    final sock = _sock;
+    _sock = null;
+    _job = null;
+    _buf = '';
+    if (sock != null) {
+      try {
+        unawaited(sock.close());
+      } catch (_) {
+        try {
+          sock.destroy();
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> stop() async {
-    _tick?.cancel();
-    _tick = null;
+    _wantRun = false;
+    _reconnect?.cancel();
+    _reconnect = null;
+    await _farm?.stop();
+    _farm = null;
+    _tearSocket();
     _running = false;
-    try {
-      await _sock?.close();
-    } catch (_) {}
-    _sock = null;
-    _job = null;
-    _emit();
+    _holdSubmit = false;
+    _emit(force: true);
   }
 
   void _fail(String err) {
     _error = err;
+    _wantRun = false;
+    _reconnect?.cancel();
+    _reconnect = null;
+    unawaited(_farm?.stop());
+    _farm = null;
+    _tearSocket();
     _running = false;
-    _tick?.cancel();
-    _tick = null;
-    _emit();
+    _holdSubmit = false;
+    _emit(force: true);
   }
 
   void _send(Map<String, dynamic> msg) {
@@ -171,47 +301,76 @@ class InWalletMiner {
     if (msg['method'] == 'job' || msg['input'] != null || msg['preWork'] != null) {
       _job = msg;
       _height = (msg['height'] as num?)?.toInt() ?? _height;
-      _emit();
+      _holdSubmit = false;
+      _farm?.setJob(msg);
+      _farm?.go();
+      _emit(force: true);
       _hashTick();
       return;
     }
     final desc = '${msg['description'] ?? msg['result'] ?? ''}'.toLowerCase();
     if (desc.contains('accept') || msg['code'] == 0) {
       _accepted += 1;
-      _emit();
+      _holdSubmit = false;
+      _farm?.go();
+      _emit(force: true);
     } else if (desc.contains('reject')) {
       _rejected += 1;
-      _emit();
+      _holdSubmit = false;
+      _farm?.go();
+      _emit(force: true);
     }
   }
 
+  void _submitShare(String nonce, Map<String, dynamic> job) {
+    final cmd = _cmd;
+    if (!_wantRun || cmd == null || _sock == null || _holdSubmit) return;
+    _holdSubmit = true;
+    _send({
+      'method': 'submit',
+      'login': cmd.user,
+      'threads': cmd.threads,
+      'client': gnfpMineClient,
+      'version': gnfpMineVersion,
+      'id': job['jobId'] ?? job['id'] ?? '1',
+      'nonce': nonce,
+      'output': '',
+      'jobId': job['jobId'] ?? job['id'] ?? '1',
+      'jsonrpc': '2.0',
+    });
+  }
+
+  /// Local fallback when isolate workers cannot start. Still scales by threads.
   void _hashTick() {
+    if (_farm != null && _farm!.isRunning) return;
     final job = _job;
     final cmd = _cmd;
-    if (!_running || job == null || cmd == null) return;
-    for (var i = 0; i < maxHashesPerTick; i += 1) {
-      _nonce += 1;
-      _hashes += 1;
-      final nonce = nextCpuNonce(_nonce);
-      if (!hashMeetsJob(job, nonce)) continue;
-      _send({
-        'method': 'submit',
-        'login': cmd.user,
-        'threads': cmd.threads,
-        'client': gnfpMineClient,
-        'version': gnfpMineVersion,
-        'id': job['jobId'] ?? job['id'] ?? '1',
-        'nonce': nonce,
-        'output': '',
-        'jobId': job['jobId'] ?? job['id'] ?? '1',
-        'jsonrpc': '2.0',
-      });
-      break;
+    if (!_wantRun || !_running || job == null || cmd == null || _hashing) return;
+    _hashing = true;
+    try {
+      final threads = cmd.threads < 1 ? 1 : cmd.threads;
+      final budget = (maxHashesPerTick < 1 ? 1 : maxHashesPerTick) * threads;
+      final got = hashNonceRange(job, _nonce + 1, budget, 1);
+      _nonce = got.nextNonce - 1;
+      _hashes += got.hashes;
+      if (got.shares.isNotEmpty) {
+        _submitShare(got.shares.first, job);
+      }
+      _emit();
+    } finally {
+      _hashing = false;
     }
-    _emit();
   }
 
-  void _emit() {
-    if (!_updates.isClosed) _updates.add(status);
+  void _emit({bool force = false}) {
+    if (_updates.isClosed) return;
+    final now = DateTime.now();
+    if (!force &&
+        _lastEmit != null &&
+        now.difference(_lastEmit!) < const Duration(milliseconds: 200)) {
+      return;
+    }
+    _lastEmit = now;
+    _updates.add(status);
   }
 }

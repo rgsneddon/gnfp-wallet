@@ -163,6 +163,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.byKey(const Key('gnfp-mine-pool')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-mine-pool-host')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-mine-payout')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-mine-threads')), findsOneWidget);
 
@@ -193,5 +194,84 @@ void main() {
     expect(cmd, contains('--pool hel.restoreprivacy.online:1474'));
     expect(cmd.contains('--notls'), isFalse);
     expect(gnfpMinePools.map((p) => p.hostPort), contains('hel.restoreprivacy.online:1474'));
+  });
+
+  testWidgets('owned miner dispose stops hashing and does not log in again', (tester) async {
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final server = await tester.runAsync(
+      () => ServerSocket.bind(InternetAddress.loopbackIPv4, 0),
+    );
+    expect(server, isNotNull);
+    addTearDown(() async {
+      await tester.runAsync(server!.close);
+    });
+    var logins = 0;
+    server!.listen((sock) {
+      sock.listen((data) {
+        for (final line in utf8.decode(data).split('\n')) {
+          if (line.trim().isEmpty) continue;
+          final msg = jsonDecode(line);
+          if (msg is! Map) continue;
+          if (msg['method'] == 'login') {
+            logins += 1;
+            sock.add(
+              utf8.encode(
+                '${jsonEncode({
+                  "jsonrpc": "2.0",
+                  "method": "job",
+                  "jobId": "j-dispose",
+                  "id": "j-dispose",
+                  "height": 1,
+                  "difficulty": 1,
+                  "input": "aaa",
+                })}\n',
+              ),
+            );
+          }
+        }
+      });
+    });
+
+    final store = File('${Directory.systemTemp.path}/gnfp-mine-dispose-session.json');
+    if (store.existsSync()) store.deleteSync();
+
+    await tester.pumpWidget(
+      GnfpWalletApp(
+        ledger: GnfpLedger(),
+        version: '0.0.7',
+        session: GnfpSession(store: store),
+        updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
+        processors: 4,
+      ),
+    );
+    await _pumpBoot(tester);
+    await tester.tap(find.byIcon(Icons.memory));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.enterText(
+      find.byKey(const Key('gnfp-mine-pool-host')),
+      '127.0.0.1:${server.port}',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('gnfp-mine-start')));
+    for (var i = 0; i < 40 && logins < 1; i++) {
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 25)),
+      );
+    }
+    expect(logins, greaterThanOrEqualTo(1));
+    expect(find.text('STOP'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final after = logins;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 400)),
+    );
+    expect(logins, after);
   });
 }

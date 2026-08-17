@@ -1,0 +1,4 @@
+storePassword=use-the-operator-keystore
+keyPassword=use-the-operator-keystore
+keyAlias=gnfp-wallet
+storeFile=/absolute/path/to/gnfp-wallet-release.jks

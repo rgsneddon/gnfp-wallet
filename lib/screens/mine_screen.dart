@@ -32,25 +32,33 @@ class _MineScreenState extends State<MineScreen> {
   StreamSubscription<InWalletMinerStatus>? _sub;
   late InWalletMinerStatus status = miner.status;
   late final TextEditingController payoutCtrl;
+  late final TextEditingController poolCtrl;
   int threads = gnfpMineDefaultThreads;
-  GnfpMinePool pool = gnfpMinePools.first;
+  String poolId = gnfpMinePools.first.id;
 
   int get maxThreads => gnfpMineMaxThreads(processors: widget.processors);
   List<int> get threadChoices =>
       gnfpMineThreadChoicesFor(processors: widget.processors);
 
-  WalletMineCommand? get cmd => buildWalletMineCommand(
-        address: payoutCtrl.text,
-        pool: pool.hostPort,
-        threads: threads,
-        tls: pool.tls,
-        processors: widget.processors,
-      );
+  String get selectedPoolHost => normalizeMinePoolHost(poolCtrl.text);
+
+  WalletMineCommand? get cmd {
+    final host = selectedPoolHost;
+    if (host.isEmpty) return null;
+    return buildWalletMineCommand(
+      address: payoutCtrl.text,
+      pool: host,
+      threads: threads,
+      tls: defaultTlsForPool(host),
+      processors: widget.processors,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     payoutCtrl = TextEditingController(text: widget.address.value);
+    poolCtrl = TextEditingController(text: gnfpMinePools.first.hostPort);
     _sub = miner.updates.listen((s) {
       if (mounted) setState(() => status = s);
     });
@@ -69,6 +77,7 @@ class _MineScreenState extends State<MineScreen> {
   void dispose() {
     _sub?.cancel();
     payoutCtrl.dispose();
+    poolCtrl.dispose();
     if (widget.miner == null) miner.stop();
     super.dispose();
   }
@@ -111,16 +120,17 @@ class _MineScreenState extends State<MineScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               key: const Key('gnfp-mine-pool'),
-              value: pool.id,
+              value: poolId,
               isExpanded: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Pool',
-                helperText: pool.hostPort,
+                helperText: 'Official fronts or a pool you type',
               ),
               selectedItemBuilder: (context) => [
                 for (final p in gnfpMinePools)
                   Text(p.label, overflow: TextOverflow.ellipsis),
+                const Text('Custom pool', overflow: TextOverflow.ellipsis),
               ],
               items: [
                 for (final p in gnfpMinePools)
@@ -128,15 +138,43 @@ class _MineScreenState extends State<MineScreen> {
                     value: p.id,
                     child: Text(p.label, overflow: TextOverflow.ellipsis),
                   ),
+                const DropdownMenuItem(
+                  value: gnfpMineCustomPoolId,
+                  child: Text('Custom pool', overflow: TextOverflow.ellipsis),
+                ),
               ],
               onChanged: locked
                   ? null
                   : (id) {
                       if (id == null) return;
                       setState(() {
-                        pool = gnfpMinePools.firstWhere((p) => p.id == id);
+                        poolId = id;
+                        if (id != gnfpMineCustomPoolId) {
+                          final p = gnfpMinePools.firstWhere((e) => e.id == id);
+                          poolCtrl.text = p.hostPort;
+                        }
                       });
                     },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('gnfp-mine-pool-host'),
+              controller: poolCtrl,
+              enabled: !locked,
+              style: const TextStyle(color: GnfpTheme.cream, fontSize: 13),
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Pool host:port',
+                hintText: 'host:1474',
+                helperText: 'Type any GNFP stratum. Localhost is --notls.',
+              ),
+              onChanged: (value) {
+                final host = normalizeMinePoolHost(value);
+                setState(() {
+                  final match = gnfpMinePools.where((p) => p.hostPort == host);
+                  poolId = match.isEmpty ? gnfpMineCustomPoolId : match.first.id;
+                });
+              },
             ),
             const SizedBox(height: 12),
             TextField(
