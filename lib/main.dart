@@ -68,6 +68,9 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
       widget.ledger.syncSpendable(loaded).then((_) {
         if (mounted) setState(() {});
       }).catchError((_) {});
+      widget.ledger.syncOwnerHistory(loaded).then((_) {
+        if (mounted) setState(() {});
+      }).catchError((_) {});
     } catch (_) {
       if (!mounted) return;
       setState(() => ready = true);

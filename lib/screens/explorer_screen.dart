@@ -4,7 +4,7 @@ import '../gnfp_ledger.dart';
 import '../gnfp_owner_ledger.dart';
 import '../gnfp_theme.dart';
 
-class ExplorerScreen extends StatelessWidget {
+class ExplorerScreen extends StatefulWidget {
   const ExplorerScreen({
     super.key,
     required this.ledger,
@@ -15,10 +15,34 @@ class ExplorerScreen extends StatelessWidget {
   final GnfpAddress address;
 
   @override
+  State<ExplorerScreen> createState() => _ExplorerScreenState();
+}
+
+class _ExplorerScreenState extends State<ExplorerScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadBookHistory();
+  }
+
+  @override
+  void didUpdateWidget(ExplorerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.address.value != widget.address.value) {
+      _loadBookHistory();
+    }
+  }
+
+  Future<void> _loadBookHistory() async {
+    await widget.ledger.syncOwnerHistory(widget.address);
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final rows = ownerLedgerRows(
-      address: address.value,
-      txs: ledger.transactions,
+      address: widget.address.value,
+      txs: widget.ledger.transactions,
     ).reversed.toList();
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -27,7 +51,7 @@ class ExplorerScreen extends StatelessWidget {
         children: [
           const Text('Explorer', style: TextStyle(fontSize: 20, color: GnfpTheme.cream)),
           Text(
-            'Your full ledger for ${address.value}. Counterparties and amounts are plaintext here only.',
+            'Your full ledger for ${widget.address.value}. Counterparties and amounts are plaintext here only.',
             style: const TextStyle(color: GnfpTheme.neonCyan, fontSize: 12),
           ),
           const SizedBox(height: 8),
