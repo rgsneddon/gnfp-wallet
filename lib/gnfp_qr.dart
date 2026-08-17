@@ -43,7 +43,7 @@ class _GnfpQrPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const modules = 21;
     final cell = size.width / modules;
-    final bg = Paint()..color = const Color(0xFF0A1628);
+    final bg = Paint()..color = const Color(0xFF000000);
     final fg = Paint()..color = const Color(0xFF00E5FF);
     canvas.drawRect(Offset.zero & size, bg);
     for (var y = 0; y < modules; y++) {

@@ -9,10 +9,10 @@ import 'gnfp_update.dart';
 import 'gnfp_update_banner.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/backup_screen.dart';
-import 'screens/credit_screen.dart';
 import 'screens/explorer_screen.dart';
+import 'screens/mine_screen.dart';
 import 'screens/mix_screen.dart';
-import 'screens/voting_screen.dart';
+import 'screens/vpn_screen.dart';
 import 'screens/wallet_screen.dart';
 
 void main() {
@@ -45,7 +45,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
   late final GnfpSession session = widget.session ?? GnfpSession();
   late GnfpAddress address = widget.ledger.createAddress(seed: 'pending');
   late final RpMixer mixer = RpMixer(gnfp: widget.ledger);
-  int index = 1;
+  int index = 0;
   bool ready = false;
   GnfpUpdateInfo? updateInfo;
 
@@ -90,11 +90,12 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      const AnalysisScreen(),
       WalletScreen(
         ledger: widget.ledger,
         address: address,
+        version: stampedVersion,
       ),
+      ExplorerScreen(ledger: widget.ledger),
       BackupScreen(
         address: address,
         ledger: widget.ledger,
@@ -103,10 +104,10 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
           setState(() => address = a);
         },
       ),
-      const VotingScreen(),
-      CreditScreen(ledger: widget.ledger, address: address),
-      ExplorerScreen(ledger: widget.ledger),
       MixScreen(mixer: mixer, gnfpAddress: address),
+      const AnalysisScreen(),
+      MineScreen(address: address),
+      const VpnScreen(),
     ];
     return MaterialApp(
       title: 'GNFP Wallet',
@@ -115,38 +116,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         key: const Key('gnfp-shell'),
         decoration: const BoxDecoration(gradient: GnfpTheme.shellGradient),
         child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            title: Row(
-              children: [
-                Image.asset(
-                  'assets/logo.png',
-                  key: const Key('gnfp-logo'),
-                  height: 32,
-                  width: 32,
-                  filterQuality: FilterQuality.medium,
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'GNFP Wallet',
-                      style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.4),
-                    ),
-                    Text(
-                      'GNFP $stampedVersion',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: GnfpTheme.muted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          backgroundColor: GnfpTheme.black,
           body: !ready
               ? const Center(child: CircularProgressIndicator())
               : Column(
@@ -159,13 +129,13 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
             selectedIndex: index,
             onDestinationSelected: (i) => setState(() => index = i),
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.analytics), label: 'Analysis'),
               NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'Wallet'),
-              NavigationDestination(icon: Icon(Icons.backup), label: 'Backup'),
-              NavigationDestination(icon: Icon(Icons.how_to_vote), label: 'Voting'),
-              NavigationDestination(icon: Icon(Icons.payments), label: 'Credit'),
               NavigationDestination(icon: Icon(Icons.explore), label: 'Explorer'),
+              NavigationDestination(icon: Icon(Icons.backup), label: 'Backup'),
               NavigationDestination(icon: Icon(Icons.swap_horiz), label: 'Mix'),
+              NavigationDestination(icon: Icon(Icons.analytics), label: 'Analysis'),
+              NavigationDestination(icon: Icon(Icons.memory), label: 'Mine'),
+              NavigationDestination(icon: Icon(Icons.shield), label: 'VPN'),
             ],
           ),
         ),

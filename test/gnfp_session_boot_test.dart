@@ -115,8 +115,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('Analysis'), findsWidgets);
     expect(find.text('Wallet'), findsWidgets);
+    expect(find.text('Explorer'), findsWidgets);
     expect(find.text('Backup'), findsWidgets);
+    expect(find.text('VPN'), findsWidgets);
+    expect(find.text('Voting'), findsNothing);
   });
 }

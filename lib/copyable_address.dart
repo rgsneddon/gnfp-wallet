@@ -26,6 +26,10 @@ class CopyableAddress extends StatelessWidget {
           child: SelectableText(
             '$label $address',
             key: const Key('gnfp-address-text'),
+            style: const TextStyle(
+              color: Color(0xFF00E5FF),
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         IconButton(

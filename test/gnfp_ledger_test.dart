@@ -180,11 +180,14 @@ void main() {
         'analysis_scs',
         'wallet',
         'backup',
-        'voting',
-        'credit',
         'explorer',
+        'mix',
+        'mine',
+        'vpn',
       ]),
     );
+    expect(gnfpEvolveSurfaces.contains('voting'), isFalse);
+    expect(gnfpEvolveSurfaces.contains('credit'), isFalse);
     expect(GnfpTheme.primary, GnfpTheme.neonCyan);
     expect(GnfpTheme.purpleIsNotPrimary, isTrue);
     expect(GnfpTheme.greyDark.value, isNot(GnfpTheme.evolvePurple.value));
@@ -259,7 +262,7 @@ void main() {
 Future<void> writeScratchEvidence(GnfpLedger ledger) async {
   final scratch = Directory(
     Platform.environment['GROK_GOAL_SCRATCH'] ??
-        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-3caf98bb6e18/implementer',
+        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-c4a536a954c2/implementer',
   );
   scratch.createSync(recursive: true);
   final a = ledger.createAddress(seed: 'alice-evidence');

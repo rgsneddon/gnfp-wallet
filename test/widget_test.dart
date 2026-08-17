@@ -30,7 +30,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: GnfpLedger(),
-        version: '0.0.2',
+        version: '0.0.3',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
@@ -40,17 +40,24 @@ void main() {
     expect(find.byKey(const Key('gnfp-logo')), findsOneWidget);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.theme!.colorScheme.primary, GnfpTheme.neonCyan);
-    expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.navy);
+    expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.black);
     expect(find.textContaining('GNFP'), findsWidgets);
-    expect(find.textContaining('0.0.2'), findsWidgets);
+    expect(find.text('GNFPv0.0.3'), findsOneWidget);
     expect(find.byKey(const Key('gnfp-update-banner')), findsNothing);
-    expect(find.text('Analysis'), findsWidgets);
     expect(find.text('Wallet'), findsWidgets);
-    expect(find.text('Backup'), findsWidgets);
-    expect(find.text('Voting'), findsWidgets);
-    expect(find.text('Credit'), findsWidgets);
     expect(find.text('Explorer'), findsWidgets);
+    expect(find.text('Backup'), findsWidgets);
     expect(find.text('Mix'), findsWidgets);
+    expect(find.text('Analysis'), findsWidgets);
+    expect(find.text('Mine'), findsWidgets);
+    expect(find.text('VPN'), findsWidgets);
+    expect(find.text('Voting'), findsNothing);
+    expect(find.text('Credit'), findsNothing);
+    expect(find.byKey(const Key('gnfp-box-identity')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-box-holdings')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-box-send')), findsOneWidget);
+    expect(find.text('Wallet'), findsWidgets);
+    expect(find.text('GNFP Wallet'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.account_balance_wallet));
     await tester.pump();
@@ -58,6 +65,10 @@ void main() {
     expect(find.byKey(const Key('gnfp-register')), findsNothing);
     expect(find.byKey(const Key('gnfp-register-name')), findsNothing);
     expect(find.text('Register / login'), findsNothing);
+    expect(find.byKey(const Key('gnfp-qr')), findsNothing);
+    expect(find.byKey(const Key('gnfp-show-qr')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('gnfp-show-qr')));
+    await tester.pump();
     expect(find.byKey(const Key('gnfp-qr')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-send')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-address')), findsOneWidget);
@@ -65,18 +76,17 @@ void main() {
     expect(find.byKey(const Key('gnfp-receive')), findsNothing);
     expect(find.text('Receive'), findsNothing);
     expect(find.text('Mining receive'), findsNothing);
-    expect(find.byKey(const Key('gnfp-receive-hint')), findsOneWidget);
-    expect(find.byKey(const Key('gnfp-miner-cmd')), findsOneWidget);
-    expect(find.textContaining('gnfp-mine --pool de.restoreprivacy.online:1474'), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-receive-hint')), findsNothing);
+    expect(find.byKey(const Key('gnfp-miner-cmd')), findsNothing);
     expect(find.textContaining('perc-mine'), findsNothing);
+    expect(find.byKey(const Key('gnfp-credit-miner')), findsOneWidget);
+    expect(find.text('Credit wallet with pending GNFP'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.payments));
+    await tester.tap(find.byIcon(Icons.shield));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.byKey(const Key('gnfp-credit-faucet')), findsNothing);
-    expect(find.text('Credit from scenario'), findsNothing);
-    expect(find.byKey(const Key('gnfp-credit-miner')), findsOneWidget);
-    expect(find.text('Credit from your miner'), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-vpn-coming-soon')), findsOneWidget);
+    expect(find.text('coming soon'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.backup));
     await tester.pump();
@@ -95,7 +105,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: ledger,
-        version: '0.0.2',
+        version: '0.0.3',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
@@ -137,10 +147,10 @@ void main() {
     );
     await pumpBoot(tester);
     expect(find.byKey(const Key('gnfp-shell')), findsOneWidget);
-    expect(find.text('GNFP 0.0.2'), findsOneWidget);
+    expect(find.textContaining('GNFPv'), findsOneWidget);
     expect(find.text('Register / login'), findsNothing);
     expect(find.byKey(const Key('gnfp-register')), findsNothing);
-    expect(find.byKey(const Key('gnfp-qr')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-show-qr')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-update-banner')), findsNothing);
   });
 
@@ -161,7 +171,7 @@ void main() {
     await pumpBoot(tester);
     expect(find.byKey(const Key('gnfp-shell')), findsOneWidget);
     expect(find.text('Register / login'), findsNothing);
-    expect(find.byKey(const Key('gnfp-qr')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-show-qr')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-address')), findsOneWidget);
   });
 
@@ -183,7 +193,7 @@ void main() {
     await pumpBoot(tester);
     expect(find.byKey(const Key('gnfp-shell')), findsOneWidget);
     expect(find.text('Register / login'), findsNothing);
-    expect(find.byKey(const Key('gnfp-qr')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-show-qr')), findsOneWidget);
   });
 
   testWidgets('old client shows update banner with direct installer URL', (tester) async {
@@ -230,7 +240,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     expect(kGnfpPackageVersion, isNot('0.0.1'));
-    expect(kGnfpPackageVersion, '0.0.2');
+    expect(kGnfpPackageVersion, isNot('0.0.2'));
     expect(kGnfpCommitCount, greaterThan(1));
     await tester.pumpWidget(
       GnfpWalletApp(
@@ -240,7 +250,7 @@ void main() {
       ),
     );
     await pumpBoot(tester);
-    expect(find.text('GNFP $kGnfpPackageVersion'), findsOneWidget);
+    expect(find.text('GNFPv$kGnfpPackageVersion'), findsOneWidget);
     expect(find.textContaining('0.0.1'), findsNothing);
     expect(
       GnfpVersion.compare(kGnfpPackageVersion, versionFromCommitCount(1).numeric),
@@ -285,8 +295,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('gnfp-network-tip')), findsOneWidget);
-    expect(find.text('Network tip $expected'), findsOneWidget);
-    expect(find.text('Network tip …'), findsNothing);
+    expect(find.text('Network Tip: $expected'), findsOneWidget);
+    expect(find.text('Network Tip: …'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
