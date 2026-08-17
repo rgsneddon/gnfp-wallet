@@ -1,0 +1,97 @@
+name: wallet-installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (v0.0.2)'
+        required: true
+        default: 'v0.0.2'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build windows --release --build-name=0.0.2 --build-number=2
+      - name: Zip Windows installer
+        shell: pwsh
+        run: |
+          $ver = "0.0.2"
+          $src = "build\windows\x64\runner\Release"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "$src\*" -DestinationPath "dist\gnfp-wallet-$ver-windows.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/gnfp-wallet-0.0.2-windows.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build linux --release --build-name=0.0.2 --build-number=2
+      - name: Zip Linux + Arch
+        run: |
+          ver=0.0.2
+          mkdir -p dist
+          (cd build/linux/x64/release/bundle && zip -qry "$GITHUB_WORKSPACE/dist/gnfp-wallet-$ver-linux.zip" .)
+          mkdir -p arch/gnfp-wallet
+          cp -a build/linux/x64/release/bundle/. arch/gnfp-wallet/
+          cat > arch/PKGBUILD <<EOF
+          pkgname=gnfp-wallet
+          pkgver=$ver
+          pkgrel=1
+          arch=('x86_64')
+          pkgdesc='\$GNFP privacy wallet'
+          url='https://github.com/rgsneddon/gnfp-wallet'
+          license=('custom')
+          depends=('gtk3')
+          source=("gnfp-wallet-\$pkgver-linux.zip")
+          package() {
+            mkdir -p "\$pkgdir/opt/gnfp-wallet" "\$pkgdir/usr/bin"
+            cp -a "\$srcdir"/. "\$pkgdir/opt/gnfp-wallet/" 2>/dev/null || true
+            printf '%s\n' '#!/bin/sh' 'exec /opt/gnfp-wallet/gnfp_wallet "\$@"' > "\$pkgdir/usr/bin/gnfp-wallet"
+            chmod 755 "\$pkgdir/usr/bin/gnfp-wallet"
+          }
+          EOF
+          (cd arch && zip -qry "$GITHUB_WORKSPACE/dist/gnfp-wallet-$ver-archlinux.zip" PKGBUILD gnfp-wallet)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/gnfp-wallet-0.0.2-linux.zip
+            dist/gnfp-wallet-0.0.2-archlinux.zip
+
+  publish:
+    needs: [windows, linux]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Upload to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          gh release upload "$TAG" artifacts/windows/*.zip artifacts/linux/*.zip --clobber
