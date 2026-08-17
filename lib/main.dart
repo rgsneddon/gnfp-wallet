@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'gnfp_bridge.dart';
 import 'gnfp_ledger.dart';
+import 'gnfp_macos_install.dart';
 import 'gnfp_session.dart';
 import 'gnfp_theme.dart';
 import 'gnfp_build_stamp.dart';
@@ -113,7 +114,8 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
     return MaterialApp(
       title: 'GNFP Wallet',
       theme: GnfpTheme.dark(),
-      home: DecoratedBox(
+      home: MacosApplicationsHint(
+        child: DecoratedBox(
         key: const Key('gnfp-shell'),
         decoration: const BoxDecoration(gradient: GnfpTheme.shellGradient),
         child: Scaffold(
@@ -141,6 +143,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
