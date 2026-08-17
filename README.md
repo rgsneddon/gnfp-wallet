@@ -9,7 +9,7 @@ $GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 
 ## Install
 
-**macOS** — unzip `gnfp-wallet-0.0.6-macos.zip` and move **GNFP Wallet** into the Applications folder. If you launch it from Downloads or the zip, the app asks you to do that. iPhone and iPad do not show that dialog: the IPA is installed into the system app space (sideload / Xcode); there is no Applications folder.
+**macOS** — unzip `gnfp-wallet-0.0.6-macos.zip` and move **GNFP Wallet** (`gnfp_wallet.app`) into Applications. This pin is Developer ID–signed and notarized so Gatekeeper can open it. If Finder says the app is damaged, re-download — that dialog is the old ad-hoc zip. Launching from Downloads still asks you to move it into Applications. iPhone and iPad do not show that dialog: the IPA is installed into the system app space (sideload / Xcode); there is no Applications folder.
 
 **Android** — `gnfp-wallet-0.0.6-android.apk`
 
@@ -21,6 +21,13 @@ $GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 flutter pub get
 flutter test
 flutter run
+```
+
+macOS GitHub zip (same pin, Developer ID + notary + `ditto`):
+
+```
+python3 pack/macos/sign_and_notarize.py --build
+gh release upload v0.0.6 dist/gnfp-wallet-0.0.6-macos.zip --clobber
 ```
 
 Releases: https://github.com/rgsneddon/gnfp-wallet/releases
