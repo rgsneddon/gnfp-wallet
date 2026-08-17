@@ -33,7 +33,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Timer? _poll;
   Timer? _retry;
 
-  static const double bannerHeight = 160;
+  static const double bannerHeight = 112;
 
   static String formatBalance(double value) => value.toStringAsFixed(8);
 
@@ -155,11 +155,11 @@ class _WalletScreenState extends State<WalletScreen> {
               children: [
                 Container(
                   key: const Key('gnfp-box-identity'),
-                  width: 220,
                   height: bannerHeight,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: _boxDeco,
+                  clipBehavior: Clip.hardEdge,
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
                         height: bannerHeight,
@@ -168,21 +168,20 @@ class _WalletScreenState extends State<WalletScreen> {
                           'assets/logo.png',
                           key: const Key('gnfp-logo'),
                           height: bannerHeight,
-                          width: bannerHeight,
-                          fit: BoxFit.contain,
+                          fit: BoxFit.fitHeight,
                           filterQuality: FilterQuality.medium,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               'GNFP Wallet',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
@@ -192,6 +191,7 @@ class _WalletScreenState extends State<WalletScreen> {
                             Text(
                               'GNFPv${widget.version}',
                               key: const Key('gnfp-version'),
+                              softWrap: false,
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: GnfpTheme.neonCyan,

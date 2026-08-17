@@ -58,6 +58,21 @@ void main() {
     expect(find.byKey(const Key('gnfp-box-send')), findsOneWidget);
     expect(find.text('Wallet'), findsWidgets);
     expect(find.text('GNFP Wallet'), findsOneWidget);
+    final idBox = tester.getSize(find.byKey(const Key('gnfp-box-identity')));
+    final logoSize = tester.getSize(find.byKey(const Key('gnfp-logo')));
+    expect(logoSize.height, moreOrLessEquals(idBox.height, epsilon: 2.5));
+    void expectPaintsFull(Finder finder, String value) {
+      final text = tester.widget<Text>(finder);
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: text.style),
+        maxLines: 1,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      expect(tester.getSize(finder).width, greaterThanOrEqualTo(painter.width - 0.5));
+    }
+
+    expectPaintsFull(find.text('GNFP Wallet'), 'GNFP Wallet');
+    expectPaintsFull(find.byKey(const Key('gnfp-version')), 'GNFPv0.0.4');
 
     await tester.tap(find.byIcon(Icons.account_balance_wallet));
     await tester.pump();
