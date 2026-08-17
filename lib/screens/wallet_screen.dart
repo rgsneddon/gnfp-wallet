@@ -30,9 +30,10 @@ class _WalletScreenState extends State<WalletScreen> {
   String creditStatus = '';
   double? networkBal;
   int? networkTip;
-  bool showQr = false;
   Timer? _poll;
   Timer? _retry;
+
+  static const double bannerHeight = 160;
 
   static String formatBalance(double value) => value.toStringAsFixed(8);
 
@@ -77,6 +78,53 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  Future<void> _send() async {
+    try {
+      await widget.ledger.send(
+        from: widget.address,
+        to: GnfpAddress(toCtrl.text.trim()),
+        amount: double.parse(amtCtrl.text),
+      );
+      setState(() => status = 'sent');
+      await _pullNetwork();
+    } catch (e) {
+      setState(() => status = e.toString());
+    }
+  }
+
+  Future<void> _openQr() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          key: const Key('gnfp-qr-popup'),
+          backgroundColor: GnfpTheme.black,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GnfpQr(address: widget.address),
+                const SizedBox(height: 12),
+                CopyableAddress(
+                  key: const Key('gnfp-qr-address'),
+                  address: widget.address.value,
+                  label: 'Address:',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const Key('gnfp-qr-close'),
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close', style: TextStyle(color: GnfpTheme.neonCyan)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _poll?.cancel();
@@ -86,159 +134,219 @@ class _WalletScreenState extends State<WalletScreen> {
     super.dispose();
   }
 
-  Widget _box({required Key key, required Widget child}) {
-    return Expanded(
-      child: Container(
-        key: key,
-        margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: GnfpTheme.blackCard,
-          borderRadius: BorderRadius.circular(GnfpTheme.radius),
-          border: Border.all(color: const Color(0xFF222222)),
-        ),
-        child: child,
-      ),
-    );
-  }
+  BoxDecoration get _boxDeco => BoxDecoration(
+        color: GnfpTheme.blackCard,
+        borderRadius: BorderRadius.circular(GnfpTheme.radius),
+        border: Border.all(color: const Color(0xFF222222)),
+      );
 
   @override
   Widget build(BuildContext context) {
     final bal = networkBal ?? widget.ledger.balance(widget.address);
-    return Column(
+    return Padding(
       key: const Key('gnfp-wallet-facade'),
-      children: [
-        _box(
-          key: const Key('gnfp-box-identity'),
-          child: Row(
-            children: [
-              Image.asset(
-                'assets/logo.png',
-                key: const Key('gnfp-logo'),
-                height: 56,
-                width: 56,
-                filterQuality: FilterQuality.medium,
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'GNFP Wallet',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 22,
-                      color: GnfpTheme.cream,
-                      letterSpacing: 0.4,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: SingleChildScrollView(
+        child: Column(
+        children: [
+          SizedBox(
+            height: bannerHeight,
+            child: Row(
+              children: [
+                Container(
+                  key: const Key('gnfp-box-identity'),
+                  width: 220,
+                  height: bannerHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: _boxDeco,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        height: bannerHeight,
+                        width: bannerHeight,
+                        child: Image.asset(
+                          'assets/logo.png',
+                          key: const Key('gnfp-logo'),
+                          height: bannerHeight,
+                          width: bannerHeight,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.medium,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'GNFP Wallet',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: GnfpTheme.cream,
+                              ),
+                            ),
+                            Text(
+                              'GNFPv${widget.version}',
+                              key: const Key('gnfp-version'),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: GnfpTheme.neonCyan,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    key: const Key('gnfp-box-holdings'),
+                    height: bannerHeight,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: _boxDeco,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Balance: ${formatBalance(bal)} $gnfpTicker',
+                                key: const Key('gnfp-balance'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: GnfpTheme.neonLime,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'Network Tip: ${networkTip ?? '…'}',
+                              key: const Key('gnfp-network-tip'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: GnfpTheme.neonYellow,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 32,
+                                child: CopyableAddress(
+                                  key: const Key('gnfp-address'),
+                                  address: widget.address.value,
+                                  label: 'Address:',
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              key: const Key('gnfp-show-qr'),
+                              onPressed: _openQr,
+                              child: const Text(
+                                'show QR code',
+                                style: TextStyle(color: GnfpTheme.neonCyan, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    'GNFPv${widget.version}',
-                    key: const Key('gnfp-version'),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: GnfpTheme.neonCyan,
-                      fontWeight: FontWeight.w600,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            key: const Key('gnfp-box-send'),
+            padding: const EdgeInsets.all(8),
+            decoration: _boxDeco,
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 72,
+                      height: 88,
+                      child: FilledButton(
+                        key: const Key('gnfp-send'),
+                        onPressed: _send,
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: const Text('Send'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          TextField(
+                            key: const Key('gnfp-send-to'),
+                            controller: toCtrl,
+                            style: const TextStyle(color: GnfpTheme.cream, fontSize: 13),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Send to GNFP address',
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            key: const Key('gnfp-send-amount'),
+                            controller: amtCtrl,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(color: GnfpTheme.cream, fontSize: 13),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              labelText: 'Amount GNFP',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    key: const Key('gnfp-credit-miner'),
+                    onPressed: _creditPending,
+                    child: const Text(
+                      'Credit wallet with pending GNFP',
+                      style: TextStyle(color: GnfpTheme.neonCyan, fontSize: 12),
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        _box(
-          key: const Key('gnfp-box-holdings'),
-          child: ListView(
-            children: [
-              Text(
-                'Balance: ${formatBalance(bal)} $gnfpTicker',
-                key: const Key('gnfp-balance'),
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: GnfpTheme.neonLime,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Network Tip: ${networkTip ?? '…'}',
-                key: const Key('gnfp-network-tip'),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: GnfpTheme.neonYellow,
-                ),
-              ),
-              const SizedBox(height: 8),
-              CopyableAddress(
-                key: const Key('gnfp-address'),
-                address: widget.address.value,
-                label: 'Address:',
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  key: const Key('gnfp-show-qr'),
-                  onPressed: () => setState(() => showQr = !showQr),
-                  child: Text(
-                    showQr ? 'hide QR code' : 'show QR code',
-                    style: const TextStyle(color: GnfpTheme.neonCyan),
-                  ),
-                ),
-              ),
-              if (showQr) GnfpQr(address: widget.address),
-            ],
+                if (status.isNotEmpty) Text(status, key: const Key('gnfp-wallet-status')),
+                if (creditStatus.isNotEmpty)
+                  Text(creditStatus, key: const Key('gnfp-credit-status')),
+              ],
+            ),
           ),
+        ],
         ),
-        _box(
-          key: const Key('gnfp-box-send'),
-          child: ListView(
-            children: [
-              TextField(
-                key: const Key('gnfp-send-to'),
-                controller: toCtrl,
-                style: const TextStyle(color: GnfpTheme.cream),
-                decoration: const InputDecoration(labelText: 'Send to GNFP address'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                key: const Key('gnfp-send-amount'),
-                controller: amtCtrl,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: GnfpTheme.cream),
-                decoration: const InputDecoration(labelText: 'Amount GNFP'),
-              ),
-              const SizedBox(height: 10),
-              FilledButton(
-                key: const Key('gnfp-send'),
-                onPressed: () async {
-                  try {
-                    await widget.ledger.send(
-                      from: widget.address,
-                      to: GnfpAddress(toCtrl.text.trim()),
-                      amount: double.parse(amtCtrl.text),
-                    );
-                    setState(() => status = 'sent');
-                    await _pullNetwork();
-                  } catch (e) {
-                    setState(() => status = e.toString());
-                  }
-                },
-                child: const Text('Send'),
-              ),
-              const SizedBox(height: 8),
-              FilledButton(
-                key: const Key('gnfp-credit-miner'),
-                onPressed: _creditPending,
-                child: const Text('Credit wallet with pending GNFP'),
-              ),
-              Text(status, key: const Key('gnfp-wallet-status')),
-              Text(creditStatus, key: const Key('gnfp-credit-status')),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

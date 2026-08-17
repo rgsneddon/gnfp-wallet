@@ -30,7 +30,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: GnfpLedger(),
-        version: '0.0.3',
+        version: '0.0.4',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
@@ -42,7 +42,7 @@ void main() {
     expect(app.theme!.colorScheme.primary, GnfpTheme.neonCyan);
     expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.black);
     expect(find.textContaining('GNFP'), findsWidgets);
-    expect(find.text('GNFPv0.0.3'), findsOneWidget);
+    expect(find.text('GNFPv0.0.4'), findsOneWidget);
     expect(find.byKey(const Key('gnfp-update-banner')), findsNothing);
     expect(find.text('Wallet'), findsWidgets);
     expect(find.text('Explorer'), findsWidgets);
@@ -66,10 +66,16 @@ void main() {
     expect(find.byKey(const Key('gnfp-register-name')), findsNothing);
     expect(find.text('Register / login'), findsNothing);
     expect(find.byKey(const Key('gnfp-qr')), findsNothing);
+    expect(find.byKey(const Key('gnfp-qr-popup')), findsNothing);
     expect(find.byKey(const Key('gnfp-show-qr')), findsOneWidget);
     await tester.tap(find.byKey(const Key('gnfp-show-qr')));
     await tester.pump();
+    expect(find.byKey(const Key('gnfp-qr-popup')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-qr')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-qr-address')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('gnfp-qr-close')));
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-qr-popup')), findsNothing);
     expect(find.byKey(const Key('gnfp-send')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-address')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-mine-receive')), findsNothing);
@@ -81,6 +87,9 @@ void main() {
     expect(find.textContaining('perc-mine'), findsNothing);
     expect(find.byKey(const Key('gnfp-credit-miner')), findsOneWidget);
     expect(find.text('Credit wallet with pending GNFP'), findsOneWidget);
+    final sendDx = tester.getTopLeft(find.byKey(const Key('gnfp-send'))).dx;
+    final toDx = tester.getTopLeft(find.byKey(const Key('gnfp-send-to'))).dx;
+    expect(sendDx, lessThan(toDx));
 
     await tester.tap(find.byIcon(Icons.shield));
     await tester.pump();
@@ -105,7 +114,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: ledger,
-        version: '0.0.3',
+        version: '0.0.4',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),

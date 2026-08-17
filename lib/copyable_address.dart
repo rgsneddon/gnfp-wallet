@@ -35,7 +35,10 @@ class CopyableAddress extends StatelessWidget {
         IconButton(
           key: const Key('gnfp-address-copy'),
           tooltip: 'Copy address',
-          icon: const Icon(Icons.copy),
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+          padding: EdgeInsets.zero,
+          icon: const Icon(Icons.copy, size: 18),
           onPressed: () async {
             await copy(address);
             onCopied?.call();

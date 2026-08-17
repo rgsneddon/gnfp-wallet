@@ -262,7 +262,7 @@ void main() {
 Future<void> writeScratchEvidence(GnfpLedger ledger) async {
   final scratch = Directory(
     Platform.environment['GROK_GOAL_SCRATCH'] ??
-        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-c4a536a954c2/implementer',
+        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-7b96e8f382e3/implementer',
   );
   scratch.createSync(recursive: true);
   final a = ledger.createAddress(seed: 'alice-evidence');
