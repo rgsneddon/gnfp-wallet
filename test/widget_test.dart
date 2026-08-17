@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:gnfp_wallet/gnfp_version.dart';
 import 'package:gnfp_wallet/gnfp_theme.dart';
 import 'package:gnfp_wallet/gnfp_update.dart';
 import 'package:gnfp_wallet/main.dart';
+import 'package:gnfp_wallet/screens/wallet_screen.dart';
 
 import 'pool_harness.dart';
 
@@ -329,5 +331,134 @@ void main() {
     expect(find.text('Network Tip: …'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('current pin hides the top update line', (tester) async {
+    final store = File('${Directory.systemTemp.path}/gnfp-widget-session-current.json');
+    if (store.existsSync()) store.deleteSync();
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final http = HttpClient();
+    addTearDown(() => http.close(force: true));
+    await tester.pumpWidget(
+      GnfpWalletApp(
+        ledger: GnfpLedger(
+          pool: GnfpPoolClient(baseUrl: 'http://127.0.0.1:9', http: http),
+        ),
+        version: '0.0.5',
+        session: GnfpSession(store: store),
+        updateCheck: GnfpUpdateCheck(
+          fetchJson: (_) async => {
+            'tag_name': 'v0.0.5',
+            'html_url':
+                'https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.0.5',
+            'assets': [
+              {
+                'name': 'gnfp-wallet-0.0.5-macos.zip',
+                'browser_download_url':
+                    'https://github.com/rgsneddon/gnfp-wallet/releases/download/v0.0.5/gnfp-wallet-0.0.5-macos.zip',
+              },
+            ],
+          },
+        ),
+      ),
+    );
+    await pumpBoot(tester);
+    expect(find.byKey(const Key('gnfp-update-banner')), findsNothing);
+    expect(find.byKey(const Key('gnfp-update-url')), findsNothing);
+    expect(find.byKey(const Key('gnfp-box-identity')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    http.close(force: true);
+    await tester.pump();
+  });
+
+  testWidgets('credit control is on the facade and uses the two mined-coins phrases', (
+    tester,
+  ) async {
+    HttpOverrides.global = RealHttpOverrides();
+    addTearDown(() {
+      HttpOverrides.global = null;
+    });
+    final pool = await tester.runAsync(startShippedPool);
+    expect(pool, isNotNull);
+    addTearDown(() async {
+      await tester.runAsync(pool!.stop);
+    });
+
+    final http = HttpClient();
+    addTearDown(() => http.close(force: true));
+    final miner = GnfpLedger(
+      pool: GnfpPoolClient(baseUrl: pool!.uri.toString(), http: http),
+    );
+    final wallet = GnfpLedger(
+      pool: GnfpPoolClient(baseUrl: pool.uri.toString(), http: http),
+    );
+    const seed = 'credit-widget-seed';
+    final addr = miner.createAddress(seed: seed);
+    wallet.adopt(addr);
+
+    final store = File('${Directory.systemTemp.path}/gnfp-widget-session-credit-shell.json');
+    store.writeAsStringSync(
+      jsonEncode({'seed': seed, 'address': addr.value, 'schema': 2}),
+    );
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      GnfpWalletApp(
+        ledger: wallet,
+        version: '0.0.5',
+        session: GnfpSession(store: store),
+        updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
+      ),
+    );
+    await pumpBoot(tester);
+    expect(find.byKey(const Key('gnfp-credit-miner')), findsOneWidget);
+
+    Future<void> tapCredit(String expected) async {
+      await tester.ensureVisible(find.byKey(const Key('gnfp-credit-miner')));
+      await tester.tap(find.byKey(const Key('gnfp-credit-miner')));
+      await tester.pump();
+      for (var i = 0; i < 40; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+        final text =
+            tester.widget<Text>(find.byKey(const Key('gnfp-credit-status'))).data ??
+                '';
+        if (text == expected) return;
+      }
+    }
+
+    String status() =>
+        tester.widget<Text>(find.byKey(const Key('gnfp-credit-status'))).data ?? '';
+
+    await tapCredit(gnfpCreditNone);
+    expect(status(), gnfpCreditNone);
+    expect(status().contains('StateError'), isFalse);
+
+    await tester.runAsync(() {
+      return miner.miningReceive(
+        to: addr,
+        amount: 5,
+        nonce: '0000000000000006',
+        solution: '',
+        preWork: 'gnfp-wallet-seed',
+      );
+    });
+    await tapCredit(gnfpCreditAdded);
+    expect(status(), gnfpCreditAdded);
+    expect(find.textContaining('StateError'), findsNothing);
+
+    await tapCredit(gnfpCreditNone);
+    expect(status(), gnfpCreditNone);
+    expect(find.textContaining('Exception'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    http.close(force: true);
+    await tester.pump();
   });
 }
