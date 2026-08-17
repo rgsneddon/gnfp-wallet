@@ -53,6 +53,53 @@ void main() {
     expect(addr.value.startsWith('gnfp1'), isTrue);
   });
 
+  test('old login-shaped store keeps the same gnfp1 after a version bump', () async {
+    final dir = await Directory.systemTemp.createTemp('gnfp-old-store');
+    final store = File('${dir.path}/session.json');
+    const kept = 'gnfp1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    store.writeAsStringSync(
+      '{"login":"rus","loginName":"rus","addr":"$kept","schema":1}',
+    );
+    final rec = GnfpSession.parseStore(
+      {'login': 'rus', 'addr': kept, 'schema': 1},
+    );
+    expect(rec, isNotNull);
+    expect(rec!.address, kept);
+    final first = GnfpSession(store: store);
+    final ledger = GnfpLedger();
+    final loaded = await first.ensureAddress(ledger);
+    expect(loaded.value, kept);
+    final again = GnfpSession(store: store);
+    final same = await again.ensureAddress(GnfpLedger());
+    expect(same.value, kept);
+    final raw = store.readAsStringSync();
+    expect(raw.contains('"login"'), isFalse);
+    expect(raw.contains(kept), isTrue);
+  });
+
+  test('legacy ~/.gnfp session migrates into the new store without minting', () async {
+    final dir = await Directory.systemTemp.createTemp('gnfp-legacy-mig');
+    final old = File('${dir.path}/.gnfp/session.json')..parent.createSync(recursive: true);
+    final next = File('${dir.path}/Library/Application Support/GNFP/session.json');
+    const kept = 'gnfp1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    old.writeAsStringSync('{"address":"$kept","seed":"legacy-seed"}');
+    final session = GnfpSession(store: next, legacyStores: [old]);
+    final addr = await session.ensureAddress(GnfpLedger());
+    expect(addr.value, kept);
+    expect(next.existsSync(), isTrue);
+    expect(next.readAsStringSync().contains(kept), isTrue);
+    final second = GnfpSession(store: next, legacyStores: [old]);
+    expect((await second.ensureAddress(GnfpLedger())).value, kept);
+  });
+
+  test('parseStore restores a backup phrase and ignores empty login-only files', () {
+    final a = GnfpLedger().createAddress(seed: 'phrase-keep');
+    final phrase = backupPhraseFor(a);
+    final rec = GnfpSession.parseStore({'backupPhrase': phrase, 'loginName': 'x'});
+    expect(rec!.address, a.value);
+    expect(GnfpSession.parseStore({'login': 'only'}), isNull);
+  });
+
   testWidgets('denied session store still reaches ready GNFP destinations', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;

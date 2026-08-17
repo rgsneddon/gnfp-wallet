@@ -32,6 +32,23 @@ void main() {
     expect(info.updateUrl, isEmpty);
   });
 
+  test('legacy 1.1.13 wallet is offered 0.0.2 as an update', () {
+    const feed = GnfpPublishedFeed(
+      version: '0.0.2',
+      assets: {
+        'gnfp-wallet-0.0.2-macos.zip':
+            'https://github.com/rgsneddon/gnfp-wallet/releases/download/v0.0.2/gnfp-wallet-0.0.2-macos.zip',
+      },
+    );
+    final info = GnfpUpdateCheck.evaluate(
+      localVersion: '1.1.13',
+      feed: feed,
+      platform: 'macos',
+    );
+    expect(info.updateAvailable, isTrue);
+    expect(info.updateUrl, contains('gnfp-wallet-0.0.2-macos.zip'));
+  });
+
   test('same local version does not claim an update', () {
     const feed = GnfpPublishedFeed(version: '0.1.11');
     final info = GnfpUpdateCheck.evaluate(

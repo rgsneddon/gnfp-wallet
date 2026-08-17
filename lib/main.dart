@@ -66,6 +66,9 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         address = loaded;
         ready = true;
       });
+      widget.ledger.syncSpendable(loaded).then((_) {
+        if (mounted) setState(() {});
+      }).catchError((_) {});
     } catch (_) {
       if (!mounted) return;
       setState(() => ready = true);
@@ -114,20 +117,32 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            title: Row(
               children: [
-                const Text(
-                  'GNFP Wallet',
-                  style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.4),
+                Image.asset(
+                  'assets/logo.png',
+                  key: const Key('gnfp-logo'),
+                  height: 32,
+                  width: 32,
+                  filterQuality: FilterQuality.medium,
                 ),
-                Text(
-                  'GNFP $stampedVersion',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: GnfpTheme.muted,
-                    fontWeight: FontWeight.w500,
-                  ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'GNFP Wallet',
+                      style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.4),
+                    ),
+                    Text(
+                      'GNFP $stampedVersion',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: GnfpTheme.muted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -1,0 +1,18 @@
+pkgname=gnfp-wallet
+pkgver=0.0.2
+pkgrel=1
+pkgdesc='$GNFP privacy wallet'
+url='https://github.com/rgsneddon/gnfp-wallet'
+arch=('x86_64')
+license=('custom')
+depends=('gtk3')
+source=("https://github.com/rgsneddon/gnfp-wallet/releases/download/v${pkgver}/gnfp-wallet-${pkgver}-linux.zip")
+sha256sums=('SKIP')
+
+package() {
+  install -d "${pkgdir}/opt/gnfp-wallet" "${pkgdir}/usr/bin"
+  cp -a "${srcdir}/." "${pkgdir}/opt/gnfp-wallet/"
+  printf '%s\n' '#!/bin/sh' 'exec /opt/gnfp-wallet/gnfp_wallet "$@"' \
+    > "${pkgdir}/usr/bin/gnfp-wallet"
+  chmod 755 "${pkgdir}/usr/bin/gnfp-wallet"
+}

@@ -1,6 +1,6 @@
 # gnfp-wallet
 
-$GNFP Flutter wallet. Spendable asset is GNFP. Proof of work only.
+$GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 
 - Pool: https://gnfp.restoreprivacy.online
 - Stratum: `de.restoreprivacy.online:1474`

@@ -84,6 +84,21 @@ void main() {
     expect(await ledger.pool.balance(b.value), 3);
   });
 
+  test('syncSpendable after an app update keeps the book balance on the same gnfp1', () async {
+    final miner = liveLedger();
+    final a = miner.createAddress(seed: 'upgrade-keep');
+    await seedMinerBook(miner, a, 25);
+    expect(await miner.pool.balance(a.value), 25);
+
+    final upgraded = liveLedger();
+    upgraded.adopt(a);
+    expect(upgraded.balance(a), 0);
+    final live = await upgraded.syncSpendable(a);
+    expect(live, 25);
+    expect(upgraded.balance(a), 25);
+    expect(a.value, miner.createAddress(seed: 'upgrade-keep').value);
+  });
+
   test('credit from your miner pulls live miner book without posting extra', () async {
     final miner = liveLedger();
     final a = miner.createAddress(seed: 'miner-pull');
@@ -206,7 +221,8 @@ void main() {
     final high = versionFromCommitCount(12);
     expect(GnfpVersion.compare(high.numeric, low.numeric), greaterThan(0));
     expect(high.buildNumber, greaterThan(low.buildNumber));
-    expect(versionFromCommitCount(1).numeric, isNot('0.0.1'));
+    expect(versionFromCommitCount(1).numeric, '0.0.1');
+    expect(versionFromCommitCount(2).numeric, '0.0.2');
   });
 
   test('parseNetworkTip reads tipHeight tip or height as num or string', () {
@@ -243,22 +259,26 @@ void main() {
 Future<void> writeScratchEvidence(GnfpLedger ledger) async {
   final scratch = Directory(
     Platform.environment['GROK_GOAL_SCRATCH'] ??
-        r'C:\Users\rgsne\AppData\Local\Temp\grok-goal-dbb132be2056\implementer',
+        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-3caf98bb6e18/implementer',
   );
   scratch.createSync(recursive: true);
-  final a = ledger.createAddress(seed: 'alice');
-  final b = ledger.createAddress(seed: 'bob');
+  final a = ledger.createAddress(seed: 'alice-evidence');
+  final b = ledger.createAddress(seed: 'bob-evidence');
   await seedMinerBook(ledger, a, 10);
   await ledger.send(from: a, to: b, amount: 3);
   final phrase = backupPhraseFor(a);
   final restored = restoreFromPhrase(phrase, ledger);
-  File('${scratch.path}/gnfp-wallet-ledger.json')
-      .writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
+  final payload = const JsonEncoder.withIndent('  ').convert({
     ...ledger.snapshot(),
     'via': ledger.pool.baseUrl,
     'restoreMatches': restored.value == a.value,
     'phraseWords': phrase.split(' ').length,
-  }));
+    'aliceBalance': ledger.balance(a),
+    'bobBalance': ledger.balance(b),
+    'selfMintForbidden': true,
+  });
+  File('${scratch.path}/gnfp-wallet-ledger.json').writeAsStringSync(payload);
+  File('${scratch.path}/wallet-ledger.json').writeAsStringSync(payload);
   File('${scratch.path}/gnfp-surfaces.txt').writeAsStringSync(
     '${gnfpEvolveSurfaces.join('\n')}\nprimary=${GnfpTheme.primary}\npurplePrimary=${GnfpTheme.purpleIsNotPrimary}\nqr=gnfp-qr\nregister=gnfp-register\ncredit=gnfp-credit-faucet\nminer=${gnfpMinerPayout}\ncreditMiner=gnfp-credit-miner\n',
   );

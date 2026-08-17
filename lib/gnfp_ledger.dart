@@ -98,6 +98,22 @@ class GnfpLedger {
     _balances.putIfAbsent(address.value, () => 0);
   }
 
+  /// Pull this address's spendable amount from the live book.
+  /// App updates keep the same gnfp1; the book is the balance of record.
+  Future<double> syncSpendable(GnfpAddress address) async {
+    if (!address.isValid) {
+      throw ArgumentError('not a GNFP address');
+    }
+    adopt(address);
+    try {
+      final live = await pool.balance(address.value);
+      _balances[address.value] = live;
+      return live;
+    } catch (_) {
+      return balance(address);
+    }
+  }
+
   bool get isGnfpChain => true;
 
   void _apply(GnfpTx tx, {double? fromBal, double? toBal}) {

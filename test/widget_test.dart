@@ -30,18 +30,19 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: GnfpLedger(),
-        version: '1.1.13',
+        version: '0.0.2',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
     );
     await pumpBoot(tester);
     expect(find.byKey(const Key('gnfp-shell')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-logo')), findsOneWidget);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.theme!.colorScheme.primary, GnfpTheme.neonCyan);
     expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.navy);
     expect(find.textContaining('GNFP'), findsWidgets);
-    expect(find.textContaining('1.1.13'), findsWidgets);
+    expect(find.textContaining('0.0.2'), findsWidgets);
     expect(find.byKey(const Key('gnfp-update-banner')), findsNothing);
     expect(find.text('Analysis'), findsWidgets);
     expect(find.text('Wallet'), findsWidgets);
@@ -94,7 +95,7 @@ void main() {
     await tester.pumpWidget(
       GnfpWalletApp(
         ledger: ledger,
-        version: '1.1.13',
+        version: '0.0.2',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
@@ -136,7 +137,7 @@ void main() {
     );
     await pumpBoot(tester);
     expect(find.byKey(const Key('gnfp-shell')), findsOneWidget);
-    expect(find.text('GNFP 1.1.13'), findsOneWidget);
+    expect(find.text('GNFP 0.0.2'), findsOneWidget);
     expect(find.text('Register / login'), findsNothing);
     expect(find.byKey(const Key('gnfp-register')), findsNothing);
     expect(find.byKey(const Key('gnfp-qr')), findsOneWidget);
@@ -229,7 +230,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     expect(kGnfpPackageVersion, isNot('0.0.1'));
-    expect(kGnfpPackageVersion, '1.1.13');
+    expect(kGnfpPackageVersion, '0.0.2');
     expect(kGnfpCommitCount, greaterThan(1));
     await tester.pumpWidget(
       GnfpWalletApp(
