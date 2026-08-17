@@ -92,6 +92,16 @@ void main() {
     expect((await second.ensureAddress(GnfpLedger())).value, kept);
   });
 
+  test('0.0.7 sandbox container session migrates after the un-sandboxed 0.0.8 install', () {
+    final paths = GnfpSession.defaultLegacyStores(home: '/Users/amy').map((f) => f.path);
+    expect(
+      paths,
+      contains(
+        '/Users/amy/Library/Containers/online.restoreprivacy.gnfpWallet/Data/Library/Application Support/GNFP/session.json',
+      ),
+    );
+  });
+
   test('parseStore restores a backup phrase and ignores empty login-only files', () {
     final a = GnfpLedger().createAddress(seed: 'phrase-keep');
     final phrase = backupPhraseFor(a);

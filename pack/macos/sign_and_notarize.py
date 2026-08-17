@@ -27,8 +27,8 @@ DEFAULT_APP = (
 DEFAULT_IDENTITY = "Developer ID Application: Russell Sneddon (SFCBP95595)"
 DEFAULT_KEY_DIR = Path.home() / "Library/Developer/perccent-codesign"
 ENTITLEMENTS = ROOT / "macos" / "Runner" / "Release.entitlements"
-PIN = "0.0.7"
-BUILD_NUMBER = "7"
+PIN = "0.0.8"
+BUILD_NUMBER = "8"
 
 
 def run(cmd: list[str]) -> None:
@@ -170,6 +170,29 @@ def package_zip(app: Path, dest: Path) -> None:
     run(["ditto", "-c", "-k", "--keepParent", str(app), str(dest)])
 
 
+def notarize_artifact(path: Path) -> None:
+    creds = resolve_notary_args()
+    run(["xcrun", "notarytool", "submit", str(path), *creds, "--wait"])
+    run(["xcrun", "stapler", "staple", str(path)])
+    run(["xcrun", "stapler", "validate", str(path)])
+
+
+def package_dmg(app: Path, dest: Path, identity: str) -> None:
+    script = Path(__file__).resolve().parent / "make_dmg.py"
+    run(
+        [
+            sys.executable,
+            str(script),
+            "--app",
+            str(app),
+            "--dmg",
+            str(dest),
+            "--identity",
+            identity,
+        ]
+    )
+
+
 def flutter_build() -> None:
     flutter = os.environ.get("FLUTTER", "flutter")
     run(
@@ -241,6 +264,17 @@ def main(argv: list[str] | None = None) -> int:
     package_zip(app, dest)
     sha = run_capture(["shasum", "-a", "256", str(dest)]).split()[0]
     print(f"Wrote {dest} sha256={sha}", flush=True)
+
+    dmg = (ROOT / "dist" / f"gnfp-wallet-{PIN}-macos.dmg").resolve()
+    package_dmg(app, dmg, identity)
+    if not args.skip_notarize:
+        try:
+            notarize_artifact(dmg)
+        except subprocess.CalledProcessError as e:
+            print(f"DMG_NOTARY_FAILED: {e}", file=sys.stderr)
+            return e.returncode or 3
+    dmg_sha = run_capture(["shasum", "-a", "256", str(dmg)]).split()[0]
+    print(f"Wrote {dmg} sha256={dmg_sha}", flush=True)
     return 0
 
 

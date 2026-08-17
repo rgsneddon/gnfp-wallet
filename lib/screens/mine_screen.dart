@@ -8,18 +8,20 @@ import '../gnfp_ledger.dart';
 import '../gnfp_mine_command.dart';
 import '../gnfp_theme.dart';
 
-/// Mine tab: auto-filled gnfp-mine 1.0.8 line + MINE GNFP starts in-wallet hashing.
+/// Mine tab: auto-filled gnfp-mine 1.0.9 line + MINE GNFP starts in-wallet hashing.
 class MineScreen extends StatefulWidget {
   const MineScreen({
     super.key,
     required this.address,
     this.miner,
     this.processors,
+    this.allowMining = true,
   });
 
   final GnfpAddress address;
   final InWalletMiner? miner;
   final int? processors;
+  final bool allowMining;
 
   @override
   State<MineScreen> createState() => _MineScreenState();
@@ -78,6 +80,7 @@ class _MineScreenState extends State<MineScreen> {
       await miner.stop();
       return;
     }
+    if (!widget.allowMining) return;
     await miner.start(built);
   }
 
@@ -102,7 +105,7 @@ class _MineScreenState extends State<MineScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'gnfp-mine 1.0.8 · pick threads, payout gnfp1, and a live pool. TLS on :1474.',
+              'gnfp-mine $gnfpMineVersion · pick threads, payout gnfp1, and a live pool. TLS on :1474.',
               style: TextStyle(color: GnfpTheme.neonCyan),
             ),
             const SizedBox(height: 12),
@@ -203,11 +206,22 @@ class _MineScreenState extends State<MineScreen> {
                 ),
                 FilledButton(
                   key: const Key('gnfp-mine-start'),
-                  onPressed: built == null ? null : _toggle,
+                  onPressed: built == null || (!widget.allowMining && !status.running)
+                      ? null
+                      : _toggle,
                   child: Text(status.running ? 'STOP' : 'MINE GNFP'),
                 ),
               ],
             ),
+            if (!widget.allowMining) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Install GNFP Wallet in Applications before mining. '
+                'A Downloads / disk-image copy can vanish under the miner.',
+                key: Key('gnfp-mine-blocked'),
+                style: TextStyle(color: GnfpTheme.neonYellow),
+              ),
+            ],
             const SizedBox(height: 12),
             Text(
               status.running

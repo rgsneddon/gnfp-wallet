@@ -67,6 +67,9 @@ class GnfpSession {
       File('$trimmed/.gnfp/session.json'),
       File('$trimmed/Library/Application Support/gnfp/session.json'),
       File('$trimmed/Library/Application Support/gnfp_wallet/session.json'),
+      File(
+        '$trimmed/Library/Containers/online.restoreprivacy.gnfpWallet/Data/Library/Application Support/GNFP/session.json',
+      ),
     ];
   }
 

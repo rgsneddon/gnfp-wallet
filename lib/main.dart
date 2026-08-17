@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -34,6 +35,7 @@ class GnfpWalletApp extends StatefulWidget {
     this.updatePlatform,
     this.miner,
     this.processors,
+    this.launchExecutable,
   });
 
   final GnfpLedger ledger;
@@ -44,6 +46,7 @@ class GnfpWalletApp extends StatefulWidget {
   final String? updatePlatform;
   final InWalletMiner? miner;
   final int? processors;
+  final String? launchExecutable;
 
   @override
   State<GnfpWalletApp> createState() => _GnfpWalletAppState();
@@ -61,6 +64,15 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
   GnfpUpdateInfo? updateInfo;
 
   String get stampedVersion => widget.version ?? kGnfpPackageVersion;
+
+  String get _launchPath {
+    if (widget.launchExecutable != null) return widget.launchExecutable!;
+    try {
+      return Platform.resolvedExecutable;
+    } catch (_) {
+      return '';
+    }
+  }
 
   @override
   void initState() {
@@ -131,13 +143,19 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         },
       ),
       MixScreen(mixer: mixer, gnfpAddress: address),
-      MineScreen(address: address, miner: miner, processors: widget.processors),
+      MineScreen(
+        address: address,
+        miner: miner,
+        processors: widget.processors,
+        allowMining: !shouldBlockMiningOnLaunchPath(_launchPath),
+      ),
       const VpnScreen(),
     ];
     return MaterialApp(
       title: 'GNFP Wallet',
       theme: GnfpTheme.dark(),
       home: MacosApplicationsHint(
+        launchExecutable: widget.launchExecutable,
         child: DecoratedBox(
         key: const Key('gnfp-shell'),
         decoration: const BoxDecoration(gradient: GnfpTheme.shellGradient),

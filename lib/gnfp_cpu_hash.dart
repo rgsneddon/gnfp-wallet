@@ -1,4 +1,4 @@
-/// Sequential gnfp-cpu-v1 work hash — same as gnfp-mine 1.0.8 / the Germany book.
+/// Sequential gnfp-cpu-v1 work hash — same as gnfp-mine 1.0.9 / the Germany book.
 library;
 
 import 'dart:convert';

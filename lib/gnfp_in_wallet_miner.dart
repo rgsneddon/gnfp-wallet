@@ -1,4 +1,4 @@
-/// In-wallet gnfp-mine 1.0.8 stratum client. Credits [user] (gnfp1….worker).
+/// In-wallet gnfp-mine 1.0.9 stratum client. Credits [user] (gnfp1….worker).
 library;
 
 import 'dart:async';
@@ -92,9 +92,10 @@ class InWalletMiner {
       final parts = cmd.pool.split(':');
       final host = parts.first;
       final port = int.tryParse(parts.length > 1 ? parts[1] : '1474') ?? 1474;
+      final useTls = resolveUseTls(pool: cmd.pool, requestedTls: cmd.tls);
       if (connect != null) {
         _sock = await connect!(host, port);
-      } else if (cmd.tls) {
+      } else if (useTls) {
         _sock = await SecureSocket.connect(
           host,
           port,
@@ -145,6 +146,12 @@ class InWalletMiner {
   }
 
   void _onData(List<int> chunk) {
+    if (_cmd != null &&
+        !resolveUseTls(pool: _cmd!.pool, requestedTls: _cmd!.tls) &&
+        looksLikeTlsRecord(chunk)) {
+      _fail(gnfpMineTlsRequiredMsg);
+      return;
+    }
     _buf += utf8.decode(chunk, allowMalformed: true);
     while (true) {
       final idx = _buf.indexOf('\n');

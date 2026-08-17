@@ -9,7 +9,7 @@ import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_mine_command.dart';
 
 void main() {
-  test('wallet mine command is gnfp-mine 1.0.8 TLS for this gnfp1', () {
+  test('wallet mine command is gnfp-mine 1.0.9 TLS for this gnfp1', () {
     const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
     final cmd = buildWalletMineCommand(address: addr, threads: 2)!;
     expect(cmd.command, startsWith('gnfp-mine '));
@@ -19,7 +19,36 @@ void main() {
     expect(cmd.command.contains('--notls'), isFalse);
     expect(cmd.tls, isTrue);
     expect(cmd.user, '$addr.worker');
+    expect(gnfpMineVersion, '1.0.9');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
+  });
+
+  test('stale tls:false does not pin the public book to plaintext', () {
+    expect(isPublicGnfpPool('de.restoreprivacy.online:1474'), isTrue);
+    expect(isPublicGnfpPool('sg.restoreprivacy.online'), isTrue);
+    expect(isPublicGnfpPool('hel.restoreprivacy.online:1474'), isTrue);
+    expect(isPublicGnfpPool('127.0.0.1:1474'), isFalse);
+    expect(looksLikeTlsRecord([0x15, 0x03, 0x03]), isTrue);
+    expect(looksLikeTlsRecord(utf8.encode('{"method":"job"}')), isFalse);
+    expect(
+      resolveUseTls(pool: 'de.restoreprivacy.online:1474', requestedTls: false),
+      isTrue,
+    );
+    expect(resolveUseTls(pool: '127.0.0.1:1474', requestedTls: false), isFalse);
+    final leftover = buildWalletMineCommand(
+      address: 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c',
+      pool: 'de.restoreprivacy.online:1474',
+      tls: false,
+    )!;
+    expect(leftover.tls, isTrue);
+    expect(leftover.command.contains('--notls'), isFalse);
+    final local = buildWalletMineCommand(
+      address: 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c',
+      pool: '127.0.0.1:1474',
+      tls: false,
+    )!;
+    expect(local.tls, isFalse);
+    expect(local.command, contains('--notls'));
   });
 
   test('mine command can target another gnfp1, thread count, and a live pool', () {
