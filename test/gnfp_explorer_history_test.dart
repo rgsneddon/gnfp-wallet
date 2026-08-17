@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
+import 'package:gnfp_wallet/gnfp_owner_ledger.dart';
 import 'package:gnfp_wallet/gnfp_pool_client.dart';
 import 'package:gnfp_wallet/screens/explorer_screen.dart';
 
@@ -34,20 +37,41 @@ void main() {
           'from': peer,
           'to': owner.value,
           'amount': 12.5,
-          'kind': 'receive',
+          'kind': 'send',
           'asset': 'GNFP',
           'memo': 'from friend',
           'height': 30190,
+        },
+        {
+          'id': 'book-sx',
+          'from': owner.value,
+          'to': peer,
+          'amount': 1,
+          'kind': 'send',
+          'asset': 'GNFP',
+          'memo': 'out',
         },
       ]),
     );
     ledger.adopt(owner);
     expect(ledger.transactions, isEmpty);
 
+    final dest = File(
+      '${Directory.systemTemp.path}/gnfp-explorer-export-test.csv',
+    );
+    if (dest.existsSync()) dest.deleteSync();
+    addTearDown(() {
+      if (dest.existsSync()) dest.deleteSync();
+    });
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ExplorerScreen(ledger: ledger, address: owner),
+          body: ExplorerScreen(
+            ledger: ledger,
+            address: owner,
+            exportFile: dest,
+          ),
         ),
       ),
     );
@@ -56,11 +80,28 @@ void main() {
 
     expect(find.byKey(const Key('gnfp-owner-ledger')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-owner-from-book-rx')), findsOneWidget);
-    expect(find.text(peer), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-owner-kind-book-rx')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-book-rx'))).data, 'receive');
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-to-book-rx'))).data, 'your address');
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-from-book-rx'))).data, peer);
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-book-sx'))).data, 'send');
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-from-book-sx'))).data, 'your address');
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-to-book-sx'))).data, peer);
+    expect(find.text(peer), findsWidgets);
     expect(find.text('12.5'), findsOneWidget);
-    expect(find.text(owner.value), findsWidgets);
+    expect(find.text('your address'), findsWidgets);
     expect(find.textContaining('Cfx-hidden'), findsNothing);
     expect(find.textContaining('shear-'), findsNothing);
     expect(find.text('No movements on this address yet.'), findsNothing);
+    expect(find.byKey(const Key('gnfp-owner-export')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('gnfp-owner-export')));
+    await tester.pump();
+    expect(dest.existsSync(), isTrue);
+    final csv = dest.readAsStringSync();
+    expect(csv, startsWith(ownerLedgerSpreadsheetHeader));
+    expect(csv, contains('receive'));
+    expect(csv, contains('your address'));
+    expect(csv, contains(peer));
+    expect(find.byKey(const Key('gnfp-owner-export-status')), findsOneWidget);
   });
 }

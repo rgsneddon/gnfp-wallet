@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'gnfp_bridge.dart';
+import 'gnfp_in_wallet_miner.dart';
 import 'gnfp_ledger.dart';
 import 'gnfp_macos_install.dart';
+import 'gnfp_mining_dot.dart';
 import 'gnfp_session.dart';
 import 'gnfp_theme.dart';
 import 'gnfp_build_stamp.dart';
@@ -28,6 +32,8 @@ class GnfpWalletApp extends StatefulWidget {
     this.session,
     this.updateCheck,
     this.updatePlatform,
+    this.miner,
+    this.processors,
   });
 
   final GnfpLedger ledger;
@@ -36,6 +42,8 @@ class GnfpWalletApp extends StatefulWidget {
   final GnfpSession? session;
   final GnfpUpdateCheck? updateCheck;
   final String? updatePlatform;
+  final InWalletMiner? miner;
+  final int? processors;
 
   @override
   State<GnfpWalletApp> createState() => _GnfpWalletAppState();
@@ -45,8 +53,11 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
   late final GnfpSession session = widget.session ?? GnfpSession();
   late GnfpAddress address = widget.ledger.createAddress(seed: 'pending');
   late final RpMixer mixer = RpMixer(gnfp: widget.ledger);
+  late final InWalletMiner miner = widget.miner ?? InWalletMiner();
+  StreamSubscription<InWalletMinerStatus>? _mineSub;
   int index = 0;
   bool ready = false;
+  bool mining = false;
   GnfpUpdateInfo? updateInfo;
 
   String get stampedVersion => widget.version ?? kGnfpPackageVersion;
@@ -54,7 +65,19 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
   @override
   void initState() {
     super.initState();
+    mining = miner.status.running;
+    _mineSub = miner.updates.listen((s) {
+      if (!mounted) return;
+      setState(() => mining = s.running);
+    });
     _boot();
+  }
+
+  @override
+  void dispose() {
+    _mineSub?.cancel();
+    if (widget.miner == null) miner.stop();
+    super.dispose();
   }
 
   /// Session first so a hung/failed update fetch cannot blank the window.
@@ -108,7 +131,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         },
       ),
       MixScreen(mixer: mixer, gnfpAddress: address),
-      MineScreen(address: address),
+      MineScreen(address: address, miner: miner, processors: widget.processors),
       const VpnScreen(),
     ];
     return MaterialApp(
@@ -124,9 +147,19 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
                   children: [
                     if (updateInfo != null) GnfpUpdateBanner(info: updateInfo!),
                     Expanded(
-                      child: !ready
-                          ? const Center(child: CircularProgressIndicator())
-                          : pages[index],
+                      child: Stack(
+                        children: [
+                          !ready
+                              ? const Center(child: CircularProgressIndicator())
+                              : pages[index],
+                          if (mining)
+                            const Positioned(
+                              top: 10,
+                              right: 10,
+                              child: IgnorePointer(child: GnfpMiningDot()),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

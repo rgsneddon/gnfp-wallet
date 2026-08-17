@@ -1,18 +1,44 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../gnfp_ledger.dart';
 import '../gnfp_owner_ledger.dart';
 import '../gnfp_theme.dart';
 
+/// Downloads on desktop; Documents on iOS/Android.
+File defaultOwnerLedgerExportFile({DateTime? now, String? home}) {
+  final stamp = (now ?? DateTime.now())
+      .toIso8601String()
+      .replaceAll(':', '')
+      .replaceAll('-', '')
+      .split('.')
+      .first;
+  final name = 'gnfp-wallet-ledger-$stamp.csv';
+  final root = (home ?? Platform.environment['HOME'] ?? '').trim();
+  if (Platform.isIOS || Platform.isAndroid) {
+    final docs = root.isEmpty ? name : '$root/Documents/$name';
+    return File(docs);
+  }
+  if (root.isNotEmpty) {
+    final downloads = Directory('$root/Downloads');
+    if (downloads.existsSync()) return File('${downloads.path}/$name');
+    return File('$root/$name');
+  }
+  return File(name);
+}
+
 class ExplorerScreen extends StatefulWidget {
   const ExplorerScreen({
     super.key,
     required this.ledger,
     required this.address,
+    this.exportFile,
   });
 
   final GnfpLedger ledger;
   final GnfpAddress address;
+  final File? exportFile;
 
   @override
   State<ExplorerScreen> createState() => _ExplorerScreenState();
@@ -38,12 +64,36 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
     if (mounted) setState(() {});
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final rows = ownerLedgerRows(
+  List<OwnerLedgerRow> _rows() {
+    return ownerLedgerRows(
       address: widget.address.value,
       txs: widget.ledger.transactions,
     ).reversed.toList();
+  }
+
+  Future<void> _exportSpreadsheet() async {
+    final rows = _rows();
+    if (rows.isEmpty) return;
+    final csv = ownerLedgerSpreadsheet(
+      address: widget.address.value,
+      rows: rows,
+    );
+    final dest = widget.exportFile ?? defaultOwnerLedgerExportFile();
+    dest.parent.createSync(recursive: true);
+    dest.writeAsStringSync(csv);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        key: const Key('gnfp-owner-export-status'),
+        content: Text('Saved spreadsheet ${dest.path}'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final owner = widget.address.value;
+    final rows = _rows();
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -53,6 +103,12 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
           Text(
             'Your full ledger for ${widget.address.value}. Counterparties and amounts are plaintext here only.',
             style: const TextStyle(color: GnfpTheme.neonCyan, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          FilledButton(
+            key: const Key('gnfp-owner-export'),
+            onPressed: rows.isEmpty ? null : _exportSpreadsheet,
+            child: const Text('Export spreadsheet'),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -83,9 +139,29 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
                           DataRow(
                             cells: [
                               DataCell(Text(r.id, key: Key('gnfp-owner-id-${r.id}'))),
-                              DataCell(Text(r.kind)),
-                              DataCell(Text(r.from, key: Key('gnfp-owner-from-${r.id}'))),
-                              DataCell(Text(r.to)),
+                              DataCell(
+                                Text(
+                                  ownerFacingKind(
+                                    address: owner,
+                                    from: r.from,
+                                    to: r.to,
+                                    kind: r.kind,
+                                  ),
+                                  key: Key('gnfp-owner-kind-${r.id}'),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  ownerFacingParty(owner, r.from),
+                                  key: Key('gnfp-owner-from-${r.id}'),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  ownerFacingParty(owner, r.to),
+                                  key: Key('gnfp-owner-to-${r.id}'),
+                                ),
+                              ),
                               DataCell(Text('${r.amount}', key: Key('gnfp-owner-amount-${r.id}'))),
                               DataCell(Text(r.asset)),
                               DataCell(Text(r.memo)),

@@ -89,8 +89,68 @@ class OwnerLedgerRow {
   }
 }
 
+const ownerAddressLabel = 'your address';
+
 bool _involves(String address, {required String from, required String to}) {
   return from == address || to == address;
+}
+
+/// Book history often stores every movement as `send`. Show direction
+/// relative to [address] so incoming credit is receive, outgoing is send.
+String ownerFacingKind({
+  required String address,
+  required String from,
+  required String to,
+  String kind = '',
+}) {
+  if (to == address && from != address) return 'receive';
+  if (from == address && to != address) return 'send';
+  if (from == address && to == address) return 'send';
+  if (kind.isEmpty) return 'send';
+  return kind;
+}
+
+/// Own gnfp1 is shown as [ownerAddressLabel] so send vs receive is readable.
+String ownerFacingParty(String address, String party) {
+  if (party.isEmpty) return party;
+  return party == address ? ownerAddressLabel : party;
+}
+
+const ownerLedgerSpreadsheetHeader =
+    'Id,Kind,From,To,Amount,Asset,Memo';
+
+String csvCell(Object? value) {
+  final text = value?.toString() ?? '';
+  if (text.contains(',') ||
+      text.contains('"') ||
+      text.contains('\n') ||
+      text.contains('\r')) {
+    return '"${text.replaceAll('"', '""')}"';
+  }
+  return text;
+}
+
+/// Spreadsheet (CSV) of the same rows Explorer shows — owner-facing kind
+/// and `your address`, newest first. Opens in Excel / Numbers / Sheets.
+String ownerLedgerSpreadsheet({
+  required String address,
+  required Iterable<OwnerLedgerRow> rows,
+}) {
+  final buf = StringBuffer()..writeln(ownerLedgerSpreadsheetHeader);
+  for (final r in rows) {
+    buf.writeln(
+      [
+        r.id,
+        ownerFacingKind(address: address, from: r.from, to: r.to, kind: r.kind),
+        ownerFacingParty(address, r.from),
+        ownerFacingParty(address, r.to),
+        r.amount,
+        r.asset,
+        r.memo,
+      ].map(csvCell).join(','),
+    );
+  }
+  return buf.toString();
 }
 
 /// Full plaintext ledger for [address] only. Never shear-tags or Cfx-hidden.

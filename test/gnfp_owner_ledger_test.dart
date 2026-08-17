@@ -71,6 +71,61 @@ void main() {
     expect(book.visibleFields.keys, containsAll(['id', 'kind', 'from', 'to', 'amount', 'asset']));
     expect(jsonCloakFree(rows), isTrue);
   });
+
+  test('owner-facing kind is receive when this wallet is the destination', () {
+    const owner = 'gnfp1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const peer = 'gnfp1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    expect(
+      ownerFacingKind(address: owner, from: peer, to: owner, kind: 'send'),
+      'receive',
+    );
+    expect(
+      ownerFacingKind(address: owner, from: owner, to: peer, kind: 'send'),
+      'send',
+    );
+    expect(
+      ownerFacingKind(address: owner, from: 'coinbase', to: owner, kind: 'mine'),
+      'receive',
+    );
+    expect(ownerFacingParty(owner, owner), ownerAddressLabel);
+    expect(ownerFacingParty(owner, peer), peer);
+  });
+
+  test('owner ledger spreadsheet is CSV with your address and receive/send', () {
+    const owner = 'gnfp1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const peer = 'gnfp1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    final rows = ownerLedgerRows(
+      address: owner,
+      txs: [
+        GnfpTx(
+          id: 'rx-1',
+          from: peer,
+          to: owner,
+          amount: 12.5,
+          kind: 'send',
+          memo: 'from friend, quoted',
+        ),
+        GnfpTx(
+          id: 'sx-1',
+          from: owner,
+          to: peer,
+          amount: 1,
+          kind: 'send',
+        ),
+      ],
+    ).reversed.toList();
+    final csv = ownerLedgerSpreadsheet(address: owner, rows: rows);
+    expect(csv, startsWith('$ownerLedgerSpreadsheetHeader\n'));
+    expect(csv, contains('receive'));
+    expect(csv, contains(ownerAddressLabel));
+    expect(csv, contains(peer));
+    expect(csv, contains('"from friend, quoted"'));
+    expect(csv.contains(owner), isFalse);
+    final lines = csv.trim().split('\n');
+    expect(lines.length, 3);
+    expect(lines[1], startsWith('sx-1,send,$ownerAddressLabel,$peer,1.0,GNFP,'));
+    expect(lines[2], startsWith('rx-1,receive,$peer,$ownerAddressLabel,12.5,GNFP,'));
+  });
 }
 
 bool jsonCloakFree(List<OwnerLedgerRow> rows) {

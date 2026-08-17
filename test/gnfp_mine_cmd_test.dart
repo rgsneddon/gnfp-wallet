@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gnfp_wallet/gnfp_cpu_hash.dart';
 import 'package:gnfp_wallet/gnfp_in_wallet_miner.dart';
+import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_mine_command.dart';
 
 void main() {
@@ -19,6 +20,43 @@ void main() {
     expect(cmd.tls, isTrue);
     expect(cmd.user, '$addr.worker');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
+  });
+
+  test('mine command can target another gnfp1, thread count, and a live pool', () {
+    const other = 'gnfp1c91376d3ad811073a70b416539a962c9090bc67e';
+    final hel = gnfpMinePoolByHost('hel.restoreprivacy.online:1474');
+    expect(gnfpMinePools.map((p) => p.hostPort), contains(gnfpStratum));
+    expect(gnfpMinePools.map((p) => p.hostPort), contains('sg.restoreprivacy.online:1474'));
+    expect(gnfpMinePools.map((p) => p.hostPort), contains(hel.hostPort));
+    final cmd = buildWalletMineCommand(
+      address: other,
+      pool: hel.hostPort,
+      threads: 8,
+      tls: hel.tls,
+      processors: 9,
+    )!;
+    expect(cmd.user, '$other.worker');
+    expect(cmd.threads, 8);
+    expect(cmd.pool, 'hel.restoreprivacy.online:1474');
+    expect(cmd.command, contains('--pool hel.restoreprivacy.online:1474'));
+    expect(cmd.command, contains('--user $other.worker'));
+    expect(cmd.command, contains('--threads 8'));
+    expect(cmd.tls, isTrue);
+  });
+
+  test('thread choices stop at device processors minus 1', () {
+    expect(gnfpMineMaxThreads(processors: 8), 7);
+    expect(gnfpMineMaxThreads(processors: 2), 1);
+    expect(gnfpMineMaxThreads(processors: 1), 1);
+    expect(gnfpMineThreadChoicesFor(processors: 4), [1, 2, 3]);
+    expect(gnfpMineThreadChoicesFor(processors: 4), isNot(contains(4)));
+    final capped = buildWalletMineCommand(
+      address: 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c',
+      threads: 16,
+      processors: 4,
+    )!;
+    expect(capped.threads, 3);
+    expect(capped.command, contains('--threads 3'));
   });
 
   test('cpu hash matches the live book personal and finds a 1-bit share', () {
