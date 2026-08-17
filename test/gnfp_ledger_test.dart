@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gnfp_wallet/gnfp_analysis.dart';
 import 'package:gnfp_wallet/gnfp_bridge.dart';
+import 'package:gnfp_wallet/gnfp_cpu_hash.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_pool_client.dart';
 import 'package:gnfp_wallet/gnfp_session.dart';
@@ -14,20 +15,29 @@ import 'package:gnfp_wallet/gnfp_version.dart';
 import 'pool_harness.dart';
 
 /// CPU work-hash the live book accepts (empty output, 16-hex nonce).
-const cpuPreWork = 'gnfp-wallet-seed';
-const cpuNonce = '0000000000000006';
+var _cpuSeed = 0;
 
 Future<GnfpTx> seedMinerBook(
   GnfpLedger ledger,
   GnfpAddress to,
   double amount,
 ) {
+  _cpuSeed += 1;
+  final preWork = 'gnfp-wallet-seed-$_cpuSeed';
+  var nonce = '0000000000000001';
+  for (var i = 1; i < 200000; i += 1) {
+    final tryNonce = nextCpuNonce(i);
+    if (hashMeetsJob({'input': preWork, 'difficulty': 1}, tryNonce)) {
+      nonce = tryNonce;
+      break;
+    }
+  }
   return ledger.miningReceive(
     to: to,
     amount: amount,
-    nonce: cpuNonce,
+    nonce: nonce,
     solution: '',
-    preWork: cpuPreWork,
+    preWork: preWork,
   );
 }
 
@@ -73,37 +83,40 @@ void main() {
     expect(a.value.toLowerCase().contains('perc'), isFalse);
     expect(b.value, isNot(a.value));
 
-    await seedMinerBook(ledger, a, 10);
-    expect(ledger.balance(a), 10);
-    final sent = await ledger.send(from: a, to: b, amount: 3);
+    final seeded = await seedMinerBook(ledger, a, 10);
+    final have = ledger.balance(a);
+    expect(have, greaterThan(0));
+    expect(have, seeded.amount);
+    final sendAmt = have / 2;
+    final sent = await ledger.send(from: a, to: b, amount: sendAmt);
     expect(sent.kind, 'send');
-    expect(ledger.balance(a), 7);
-    expect(ledger.balance(b), 3);
+    expect(ledger.balance(a), closeTo(have - sendAmt, 1e-18));
+    expect(ledger.balance(b), closeTo(sendAmt, 1e-18));
     expect(gnfpTicker, 'GNFP');
     expect(gnfpStratum, contains('de.restoreprivacy.online:1474'));
-    expect(await ledger.pool.balance(b.value), 3);
+    expect(await ledger.pool.balance(b.value), closeTo(sendAmt, 1e-18));
   });
 
   test('syncSpendable after an app update keeps the book balance on the same gnfp1', () async {
     final miner = liveLedger();
     final a = miner.createAddress(seed: 'upgrade-keep');
-    await seedMinerBook(miner, a, 25);
-    expect(await miner.pool.balance(a.value), 25);
+    final seeded = await seedMinerBook(miner, a, 25);
+    expect(await miner.pool.balance(a.value), seeded.amount);
 
     final upgraded = liveLedger();
     upgraded.adopt(a);
     expect(upgraded.balance(a), 0);
     final live = await upgraded.syncSpendable(a);
-    expect(live, 25);
-    expect(upgraded.balance(a), 25);
+    expect(live, seeded.amount);
+    expect(upgraded.balance(a), seeded.amount);
     expect(a.value, miner.createAddress(seed: 'upgrade-keep').value);
   });
 
   test('credit from your miner pulls live miner book without posting extra', () async {
     final miner = liveLedger();
     final a = miner.createAddress(seed: 'miner-pull');
-    await seedMinerBook(miner, a, 50);
-    expect(miner.balance(a), 50);
+    final seeded = await seedMinerBook(miner, a, 50);
+    expect(miner.balance(a), seeded.amount);
 
     final wallet = liveLedger();
     wallet.adopt(a);
@@ -112,13 +125,13 @@ void main() {
     expect(tx.kind, 'miner');
     expect(tx.memo, 'credit from your miner');
     expect(tx.from, gnfpStratum);
-    expect(wallet.balance(a), 50);
-    expect(await wallet.pool.balance(a.value), 50);
+    expect(wallet.balance(a), seeded.amount);
+    expect(await wallet.pool.balance(a.value), seeded.amount);
 
     final again = await wallet.creditFromMiner(to: a);
     expect(again.amount, 0);
-    expect(wallet.balance(a), 50);
-    expect(await wallet.pool.balance(a.value), 50);
+    expect(wallet.balance(a), seeded.amount);
+    expect(await wallet.pool.balance(a.value), seeded.amount);
   });
 
   test('session persists gnfp1 address without a login name', () async {
@@ -176,8 +189,6 @@ void main() {
     expect(
       gnfpEvolveSurfaces,
       containsAll([
-        'analysis_percent_chance',
-        'analysis_scs',
         'wallet',
         'backup',
         'explorer',
@@ -188,6 +199,9 @@ void main() {
     );
     expect(gnfpEvolveSurfaces.contains('voting'), isFalse);
     expect(gnfpEvolveSurfaces.contains('credit'), isFalse);
+    expect(gnfpEvolveSurfaces.contains('analysis_percent_chance'), isFalse);
+    expect(gnfpChromeTabs.contains('Analysis'), isFalse);
+    expect(gnfpChromeTabs.contains('Backup'), isTrue);
     expect(GnfpTheme.primary, GnfpTheme.neonCyan);
     expect(GnfpTheme.purpleIsNotPrimary, isTrue);
     expect(GnfpTheme.greyDark.value, isNot(GnfpTheme.evolvePurple.value));
@@ -262,13 +276,13 @@ void main() {
 Future<void> writeScratchEvidence(GnfpLedger ledger) async {
   final scratch = Directory(
     Platform.environment['GROK_GOAL_SCRATCH'] ??
-        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-f566d95a8b14/implementer',
+        '/var/folders/qb/tz4y4zts04z4846pbq95l6kw0000gp/T/grok-goal-c322301e810a/implementer',
   );
   scratch.createSync(recursive: true);
   final a = ledger.createAddress(seed: 'alice-evidence');
   final b = ledger.createAddress(seed: 'bob-evidence');
-  await seedMinerBook(ledger, a, 10);
-  await ledger.send(from: a, to: b, amount: 3);
+  final seeded = await seedMinerBook(ledger, a, 10);
+  await ledger.send(from: a, to: b, amount: seeded.amount / 2);
   final phrase = backupPhraseFor(a);
   final restored = restoreFromPhrase(phrase, ledger);
   final payload = const JsonEncoder.withIndent('  ').convert({

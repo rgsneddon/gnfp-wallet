@@ -7,7 +7,6 @@ import 'gnfp_theme.dart';
 import 'gnfp_build_stamp.dart';
 import 'gnfp_update.dart';
 import 'gnfp_update_banner.dart';
-import 'screens/analysis_screen.dart';
 import 'screens/backup_screen.dart';
 import 'screens/explorer_screen.dart';
 import 'screens/mine_screen.dart';
@@ -95,7 +94,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         address: address,
         version: stampedVersion,
       ),
-      ExplorerScreen(ledger: widget.ledger),
+      ExplorerScreen(ledger: widget.ledger, address: address),
       BackupScreen(
         address: address,
         ledger: widget.ledger,
@@ -105,7 +104,6 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         },
       ),
       MixScreen(mixer: mixer, gnfpAddress: address),
-      const AnalysisScreen(),
       MineScreen(address: address),
       const VpnScreen(),
     ];
@@ -135,7 +133,6 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
               NavigationDestination(icon: Icon(Icons.explore), label: 'Explorer'),
               NavigationDestination(icon: Icon(Icons.backup), label: 'Backup'),
               NavigationDestination(icon: Icon(Icons.swap_horiz), label: 'Mix'),
-              NavigationDestination(icon: Icon(Icons.analytics), label: 'Analysis'),
               NavigationDestination(icon: Icon(Icons.memory), label: 'Mine'),
               NavigationDestination(icon: Icon(Icons.shield), label: 'VPN'),
             ],

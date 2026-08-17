@@ -51,7 +51,7 @@ void main() {
     expect(find.text('Explorer'), findsWidgets);
     expect(find.text('Backup'), findsWidgets);
     expect(find.text('Mix'), findsWidgets);
-    expect(find.text('Analysis'), findsWidgets);
+    expect(find.text('Analysis'), findsNothing);
     expect(find.text('Mine'), findsWidgets);
     expect(find.text('VPN'), findsWidgets);
     expect(find.text('Voting'), findsNothing);
@@ -121,6 +121,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.byKey(const Key('gnfp-backup-phrase')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-restore')), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.explore));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('gnfp-owner-ledger')), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.memory));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('gnfp-miner-cmd')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-mine-start')), findsOneWidget);
+    expect(find.text('MINE GNFP'), findsOneWidget);
+    final cmd = tester.widget<SelectableText>(find.byKey(const Key('gnfp-miner-cmd'))).data ?? '';
+    expect(cmd, contains('de.restoreprivacy.online:1474'));
+    expect(cmd.contains('--notls'), isFalse);
+    expect(cmd, contains('--user'));
+    expect(cmd, contains('.worker'));
   });
 
   testWidgets('Mix go does not raise GNFP on the shipped shell', (tester) async {

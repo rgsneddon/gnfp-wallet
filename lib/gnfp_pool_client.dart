@@ -145,6 +145,10 @@ class GnfpPoolClient {
 
   Future<Map<String, dynamic>> snapshot() => get('/api/wallet/snapshot');
 
+  /// Owner-only plaintext history for one gnfp1. Not the public cloak feed.
+  Future<Map<String, dynamic>> history(String address) =>
+      get('/api/wallet/history?address=$address');
+
   Future<Map<String, dynamic>> mix({
     required String fromCoin,
     required String toCoin,

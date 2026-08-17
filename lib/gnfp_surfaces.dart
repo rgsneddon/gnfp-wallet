@@ -4,8 +4,15 @@ const gnfpEvolveSurfaces = <String>[
   'explorer',
   'backup',
   'mix',
-  'analysis_percent_chance',
-  'analysis_scs',
   'mine',
   'vpn',
+];
+
+const gnfpChromeTabs = <String>[
+  'Wallet',
+  'Explorer',
+  'Backup',
+  'Mix',
+  'Mine',
+  'VPN',
 ];

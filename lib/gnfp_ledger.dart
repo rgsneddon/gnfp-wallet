@@ -10,6 +10,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import 'gnfp_owner_ledger.dart';
 import 'gnfp_pool_client.dart';
 
 const gnfpTicker = 'GNFP';
@@ -73,6 +74,35 @@ class GnfpLedger {
   int? lastTip;
 
   Iterable<GnfpTx> get transactions => List.unmodifiable(_txs);
+
+  /// Plaintext owner ledger for [address] from local book-backed txs.
+  List<OwnerLedgerRow> ownerRows(GnfpAddress address) =>
+      ownerLedgerRows(address: address.value, txs: _txs);
+
+  /// Pull owner-visible history from the book wallet API and merge.
+  Future<List<OwnerLedgerRow>> syncOwnerHistory(GnfpAddress address) async {
+    try {
+      final json = await pool.history(address.value);
+      final rows = ownerLedgerRows(
+        address: address.value,
+        txs: (json['txs'] as List?) ?? const [],
+      );
+      for (final row in rows) {
+        if (_txs.any((t) => t.id == row.id)) continue;
+        _txs.add(GnfpTx(
+          id: row.id,
+          from: row.from,
+          to: row.to,
+          amount: row.amount,
+          kind: row.kind,
+          memo: row.memo,
+        ));
+      }
+      return ownerRows(address);
+    } catch (_) {
+      return ownerRows(address);
+    }
+  }
 
   /// Live chain height from the pool tip/network book. Caches [lastTip].
   Future<int> networkTip() async {
