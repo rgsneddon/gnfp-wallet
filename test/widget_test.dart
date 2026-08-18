@@ -140,6 +140,51 @@ void main() {
     expect(cmd, contains('.worker'));
   });
 
+  testWidgets('phone-width wallet paints full balance above the send box', (tester) async {
+    final store = File('${Directory.systemTemp.path}/gnfp-widget-session-phone.json');
+    if (store.existsSync()) store.deleteSync();
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(
+      GnfpWalletApp(
+        ledger: GnfpLedger(),
+        version: '0.1.2',
+        session: GnfpSession(store: store),
+        updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
+      ),
+    );
+    await pumpBoot(tester);
+
+    const balanceText = 'Balance: 0.00000000 GNFP';
+    expect(find.byKey(const Key('gnfp-balance')), findsOneWidget);
+    expect(find.text(balanceText), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-network-tip')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-address')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-box-send')), findsOneWidget);
+
+    void expectPaintsFull(Finder finder, String value) {
+      final text = tester.widget<Text>(finder);
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: text.style),
+        maxLines: 2,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: tester.getSize(finder).width);
+      expect(tester.getSize(finder).height, greaterThanOrEqualTo(painter.height - 0.5));
+      expect(painter.didExceedMaxLines, isFalse);
+    }
+
+    expectPaintsFull(find.byKey(const Key('gnfp-balance')), balanceText);
+    expectPaintsFull(find.byKey(const Key('gnfp-network-tip')), 'Network Tip: …');
+
+    final id = tester.getRect(find.byKey(const Key('gnfp-box-identity')));
+    final hold = tester.getRect(find.byKey(const Key('gnfp-box-holdings')));
+    final send = tester.getRect(find.byKey(const Key('gnfp-box-send')));
+    expect(hold.top, greaterThanOrEqualTo(id.bottom - 0.5));
+    expect(send.top, greaterThanOrEqualTo(hold.bottom - 0.5));
+    expect(hold.width, greaterThan(300));
+  });
+
   testWidgets('Mix surface is gone from the shipped shell', (tester) async {
     final store = File('${Directory.systemTemp.path}/gnfp-widget-session-mix.json');
     if (store.existsSync()) store.deleteSync();
