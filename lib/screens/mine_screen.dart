@@ -125,7 +125,7 @@ class _MineScreenState extends State<MineScreen> {
               decoration: const InputDecoration(
                 isDense: true,
                 labelText: 'Pool',
-                helperText: 'Official fronts or a pool you type',
+                helperText: 'Germany, Singapore, or a pool you type',
               ),
               selectedItemBuilder: (context) => [
                 for (final p in gnfpMinePools)

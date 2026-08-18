@@ -128,8 +128,12 @@ void main() {
     expect(wallet.balance(a), seeded.amount);
     expect(await wallet.pool.balance(a.value), seeded.amount);
 
+    expect(wallet.transactions.where((t) => t.kind == 'miner').length, 1);
+    final afterClaim = wallet.transactions.length;
     final again = await wallet.creditFromMiner(to: a);
     expect(again.amount, 0);
+    expect(wallet.transactions.length, afterClaim);
+    expect(wallet.transactions.where((t) => t.amount <= 0), isEmpty);
     expect(wallet.balance(a), seeded.amount);
     expect(await wallet.pool.balance(a.value), seeded.amount);
   });

@@ -27,6 +27,7 @@ void main() {
     expect(isPublicGnfpPool('de.restoreprivacy.online:1474'), isTrue);
     expect(isPublicGnfpPool('sg.restoreprivacy.online'), isTrue);
     expect(isPublicGnfpPool('hel.restoreprivacy.online:1474'), isTrue);
+    expect(gnfpMinePools.map((p) => p.id), isNot(contains('hel')));
     expect(isPublicGnfpPool('127.0.0.1:1474'), isFalse);
     expect(looksLikeTlsRecord([0x15, 0x03, 0x03]), isTrue);
     expect(looksLikeTlsRecord(utf8.encode('{"method":"job"}')), isFalse);
@@ -75,21 +76,27 @@ void main() {
 
   test('mine command can target another gnfp1, thread count, and a live pool', () {
     const other = 'gnfp1c91376d3ad811073a70b416539a962c9090bc67e';
-    final hel = gnfpMinePoolByHost('hel.restoreprivacy.online:1474');
+    final sg = gnfpMinePoolByHost('sg.restoreprivacy.online:1474');
     expect(gnfpMinePools.map((p) => p.hostPort), contains(gnfpStratum));
     expect(gnfpMinePools.map((p) => p.hostPort), contains('sg.restoreprivacy.online:1474'));
-    expect(gnfpMinePools.map((p) => p.hostPort), contains(hel.hostPort));
+    expect(gnfpMinePools.map((p) => p.id), isNot(contains('hel')));
+    for (final p in gnfpMinePools) {
+      expect(p.label.contains('(book)'), isFalse);
+      expect(p.label.contains('(join)'), isFalse);
+      expect(p.label.contains('(front)'), isFalse);
+      expect(p.label.toLowerCase().contains('helsinki'), isFalse);
+    }
     final cmd = buildWalletMineCommand(
       address: other,
-      pool: hel.hostPort,
+      pool: sg.hostPort,
       threads: 8,
-      tls: hel.tls,
+      tls: sg.tls,
       processors: 9,
     )!;
     expect(cmd.user, '$other.worker');
     expect(cmd.threads, 8);
-    expect(cmd.pool, 'hel.restoreprivacy.online:1474');
-    expect(cmd.command, contains('--pool hel.restoreprivacy.online:1474'));
+    expect(cmd.pool, 'sg.restoreprivacy.online:1474');
+    expect(cmd.command, contains('--pool sg.restoreprivacy.online:1474'));
     expect(cmd.command, contains('--user $other.worker'));
     expect(cmd.command, contains('--threads 8'));
     expect(cmd.tls, isTrue);

@@ -246,7 +246,9 @@ class GnfpLedger {
       kind: 'miner',
       memo: 'credit from your miner',
     );
-    _txs.add(tx);
+    if (delta > 0) {
+      _txs.add(tx);
+    }
     return tx;
   }
 

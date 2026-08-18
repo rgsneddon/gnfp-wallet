@@ -24,7 +24,7 @@ List<int> gnfpMineThreadChoicesFor({int? processors}) {
   return [for (var i = 1; i <= max; i++) i];
 }
 
-/// Germany book and join/Helsinki fronts speak TLS. --notls is local only.
+/// Official Germany and Singapore pools speak TLS. --notls is local only.
 bool isPublicGnfpPool(String hostPort) {
   final host = hostPort.trim().toLowerCase().split(':').first.replaceAll(RegExp(r'\.$'), '');
   return host == 'restoreprivacy.online' || host.endsWith('.restoreprivacy.online');
@@ -44,8 +44,8 @@ bool looksLikeTlsRecord(List<int> chunk) {
   return c == 0x14 || c == 0x15 || c == 0x16 || c == 0x17;
 }
 
-/// Functioning gnfp-mine 1.0.9 stratum fronts. Book is Germany; SG joins DE;
-/// HEL is the replica front. All TLS on :1474.
+/// Official gnfp-mine 1.0.9 pools. Germany and Singapore only; Custom is typed.
+/// All official hosts are TLS on :1474. No Helsinki.
 class GnfpMinePool {
   const GnfpMinePool({
     required this.id,
@@ -64,17 +64,12 @@ const gnfpMinePools = <GnfpMinePool>[
   GnfpMinePool(
     id: 'de',
     hostPort: gnfpStratum,
-    label: 'Germany book',
+    label: 'Germany · de.restoreprivacy.online:1474',
   ),
   GnfpMinePool(
     id: 'sg',
     hostPort: 'sg.restoreprivacy.online:1474',
-    label: 'Singapore join',
-  ),
-  GnfpMinePool(
-    id: 'hel',
-    hostPort: 'hel.restoreprivacy.online:1474',
-    label: 'Helsinki front',
+    label: 'Singapore · sg.restoreprivacy.online:1474',
   ),
 ];
 

@@ -164,6 +164,7 @@ List<OwnerLedgerRow> ownerLedgerRows({
   for (final raw in txs) {
     if (raw is GnfpTx) {
       if (!_involves(addr, from: raw.from, to: raw.to)) continue;
+      if (raw.amount <= 0) continue;
       out.add(OwnerLedgerRow.fromTx(raw));
       continue;
     }
@@ -172,6 +173,7 @@ List<OwnerLedgerRow> ownerLedgerRows({
       final from = json['from']?.toString() ?? '';
       final to = json['to']?.toString() ?? '';
       if (!_involves(addr, from: from, to: to)) continue;
+      if (((json['amount'] as num?)?.toDouble() ?? 0) <= 0) continue;
       out.add(OwnerLedgerRow.fromJson(json));
     }
   }
