@@ -19,7 +19,7 @@ void main() {
     expect(cmd.command.contains('--notls'), isFalse);
     expect(cmd.tls, isTrue);
     expect(cmd.user, '$addr.worker');
-    expect(gnfpMineVersion, '1.0.9');
+    expect(gnfpMineVersion, '1.1.0');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
   });
 

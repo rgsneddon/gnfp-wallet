@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'gnfp_bridge.dart';
 import 'gnfp_in_wallet_miner.dart';
 import 'gnfp_ledger.dart';
 import 'gnfp_macos_install.dart';
@@ -16,7 +15,6 @@ import 'gnfp_update_banner.dart';
 import 'screens/backup_screen.dart';
 import 'screens/explorer_screen.dart';
 import 'screens/mine_screen.dart';
-import 'screens/mix_screen.dart';
 import 'screens/vpn_screen.dart';
 import 'screens/wallet_screen.dart';
 
@@ -55,7 +53,6 @@ class GnfpWalletApp extends StatefulWidget {
 class _GnfpWalletAppState extends State<GnfpWalletApp> {
   late final GnfpSession session = widget.session ?? GnfpSession();
   late GnfpAddress address = widget.ledger.createAddress(seed: 'pending');
-  late final RpMixer mixer = RpMixer(gnfp: widget.ledger);
   late final InWalletMiner miner = widget.miner ?? InWalletMiner();
   StreamSubscription<InWalletMinerStatus>? _mineSub;
   int index = 0;
@@ -142,7 +139,6 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
           setState(() => address = a);
         },
       ),
-      MixScreen(mixer: mixer, gnfpAddress: address),
       MineScreen(
         address: address,
         miner: miner,
@@ -188,7 +184,6 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
               NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'Wallet'),
               NavigationDestination(icon: Icon(Icons.explore), label: 'Explorer'),
               NavigationDestination(icon: Icon(Icons.backup), label: 'Backup'),
-              NavigationDestination(icon: Icon(Icons.swap_horiz), label: 'Mix'),
               NavigationDestination(icon: Icon(Icons.memory), label: 'Mine'),
               NavigationDestination(icon: Icon(Icons.shield), label: 'VPN'),
             ],

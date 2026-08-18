@@ -196,11 +196,12 @@ void main() {
         'wallet',
         'backup',
         'explorer',
-        'mix',
         'mine',
         'vpn',
       ]),
     );
+    expect(gnfpEvolveSurfaces.contains('mix'), isFalse);
+    expect(gnfpChromeTabs.contains('Mix'), isFalse);
     expect(gnfpEvolveSurfaces.contains('voting'), isFalse);
     expect(gnfpEvolveSurfaces.contains('credit'), isFalse);
     expect(gnfpEvolveSurfaces.contains('analysis_percent_chance'), isFalse);

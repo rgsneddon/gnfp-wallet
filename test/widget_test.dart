@@ -50,7 +50,7 @@ void main() {
     expect(find.text('Wallet'), findsWidgets);
     expect(find.text('Explorer'), findsWidgets);
     expect(find.text('Backup'), findsWidgets);
-    expect(find.text('Mix'), findsWidgets);
+    expect(find.text('Mix'), findsNothing);
     expect(find.text('Analysis'), findsNothing);
     expect(find.text('Mine'), findsWidgets);
     expect(find.text('VPN'), findsWidgets);
@@ -140,39 +140,24 @@ void main() {
     expect(cmd, contains('.worker'));
   });
 
-  testWidgets('Mix go does not raise GNFP on the shipped shell', (tester) async {
+  testWidgets('Mix surface is gone from the shipped shell', (tester) async {
     final store = File('${Directory.systemTemp.path}/gnfp-widget-session-mix.json');
     if (store.existsSync()) store.deleteSync();
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
-    final ledger = GnfpLedger();
     await tester.pumpWidget(
       GnfpWalletApp(
-        ledger: ledger,
+        ledger: GnfpLedger(),
         version: '0.0.5',
         session: GnfpSession(store: store),
         updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
       ),
     );
     await pumpBoot(tester);
-    final addr = tester.widget<CopyableAddress>(find.byKey(const Key('gnfp-address'))).address;
-    expect(ledger.balance(GnfpAddress(addr)), 0);
-
-    await tester.tap(find.byIcon(Icons.swap_horiz));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(find.byKey(const Key('gnfp-mix-go')), findsOneWidget);
-    expect(find.textContaining('GNFP balance 0'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('gnfp-mix-go')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('GNFP balance 0'), findsOneWidget);
-    expect(find.textContaining('self_mint_forbidden'), findsOneWidget);
-    expect(ledger.balance(GnfpAddress(addr)), 0);
-    expect(find.byKey(const Key('gnfp-receive')), findsNothing);
-    expect(find.byKey(const Key('gnfp-credit-faucet')), findsNothing);
+    expect(find.text('Mix'), findsNothing);
+    expect(find.byIcon(Icons.swap_horiz), findsNothing);
+    expect(find.byKey(const Key('gnfp-mix-go')), findsNothing);
   });
 
   testWidgets('boot still shows no-login shell when update fetch throws', (tester) async {

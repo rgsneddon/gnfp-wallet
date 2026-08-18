@@ -27,8 +27,8 @@ DEFAULT_APP = (
 DEFAULT_IDENTITY = "Developer ID Application: Russell Sneddon (SFCBP95595)"
 DEFAULT_KEY_DIR = Path.home() / "Library/Developer/perccent-codesign"
 ENTITLEMENTS = ROOT / "macos" / "Runner" / "Release.entitlements"
-PIN = "0.1.1"
-BUILD_NUMBER = "11"
+PIN = "0.1.2"
+BUILD_NUMBER = "12"
 
 
 def run(cmd: list[str]) -> None:
