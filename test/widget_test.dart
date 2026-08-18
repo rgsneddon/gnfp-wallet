@@ -300,7 +300,7 @@ void main() {
     );
     await pumpBoot(tester);
     expect(find.text('GNFPv$kGnfpPackageVersion'), findsOneWidget);
-    expect(find.textContaining('0.0.1'), findsNothing);
+    expect(find.text('GNFPv0.0.1'), findsNothing);
     expect(
       GnfpVersion.compare(kGnfpPackageVersion, versionFromCommitCount(1).numeric),
       greaterThan(0),

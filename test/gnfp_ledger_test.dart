@@ -240,6 +240,14 @@ void main() {
     expect(high.buildNumber, greaterThan(low.buildNumber));
     expect(versionFromCommitCount(1).numeric, '0.0.1');
     expect(versionFromCommitCount(2).numeric, '0.0.2');
+    expect(versionFromCommitCount(9).numeric, '0.0.9');
+    expect(versionFromCommitCount(10).numeric, '0.1.0');
+    expect(versionFromCommitCount(11).numeric, '0.1.1');
+    expect(GnfpVersion.isLegacyPin('0.1.0'), isFalse);
+    expect(GnfpVersion.isLegacyPin('0.0.9'), isFalse);
+    expect(GnfpVersion.isLegacyPin('0.1.10'), isTrue);
+    expect(GnfpVersion.isLegacyPin('1.1.13'), isTrue);
+    expect(GnfpVersion.compare('0.1.0', '0.0.9'), greaterThan(0));
   });
 
   test('parseNetworkTip reads tipHeight tip or height as num or string', () {

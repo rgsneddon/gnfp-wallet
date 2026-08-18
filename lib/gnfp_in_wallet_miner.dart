@@ -39,12 +39,14 @@ class InWalletMiner {
     this.maxHashesPerTick = 256,
     this.reconnectDelay = const Duration(seconds: 2),
     this.statsEvery = const Duration(seconds: 1),
-  });
+    DateTime Function()? clock,
+  }) : _now = clock ?? DateTime.now;
 
   final SecureConnect? connect;
   final int maxHashesPerTick;
   final Duration reconnectDelay;
   final Duration statsEvery;
+  final DateTime Function() _now;
 
   Socket? _sock;
   Timer? _tick;
@@ -54,12 +56,13 @@ class InWalletMiner {
   String _buf = '';
   Map<String, dynamic>? _job;
   WalletMineCommand? _cmd;
-  DateTime? _started;
+  DateTime? _firstHashAt;
   DateTime? _lastEmit;
   int _nonce = 0;
   int _accepted = 0;
   int _rejected = 0;
   int _hashes = 0;
+  int _bits = 1;
   int _height = 0;
   String _error = '';
   bool _wantRun = false;
@@ -81,11 +84,11 @@ class InWalletMiner {
       );
 
   double get _rate {
-    final start = _started;
-    if (start == null) return 0;
-    final sec = DateTime.now().difference(start).inMilliseconds / 1000;
+    final start = _firstHashAt;
+    if (start == null || _accepted <= 0) return 0;
+    final sec = _now().difference(start).inMilliseconds / 1000;
     if (sec <= 0) return 0;
-    return _hashes / sec;
+    return verifiedWorkRate(accepted: _accepted, bits: _bits, elapsedSec: sec);
   }
 
   /// Starts hashing as [cmd.user] so pool credit lands on that gnfp1.
@@ -98,9 +101,10 @@ class InWalletMiner {
     _accepted = 0;
     _rejected = 0;
     _hashes = 0;
+    _bits = 1;
     _nonce = 0;
     _holdSubmit = false;
-    _started = DateTime.now();
+    _firstHashAt = null;
     _emit(force: true);
     await _startFarm(cmd.threads);
     await _openSocket();
@@ -301,6 +305,7 @@ class InWalletMiner {
     if (msg['method'] == 'job' || msg['input'] != null || msg['preWork'] != null) {
       _job = msg;
       _height = (msg['height'] as num?)?.toInt() ?? _height;
+      _bits = jobDifficultyBits(msg['difficulty'] ?? _bits);
       _holdSubmit = false;
       _farm?.setJob(msg);
       _farm?.go();
@@ -309,8 +314,10 @@ class InWalletMiner {
       return;
     }
     final desc = '${msg['description'] ?? msg['result'] ?? ''}'.toLowerCase();
-    if (desc.contains('accept') || msg['code'] == 0) {
+    // Pool login is code=0 "Login Successful". Share ack is "accepted" (code=1).
+    if (desc.contains('accept')) {
       _accepted += 1;
+      _firstHashAt ??= _now();
       _holdSubmit = false;
       _farm?.go();
       _emit(force: true);
@@ -364,7 +371,7 @@ class InWalletMiner {
 
   void _emit({bool force = false}) {
     if (_updates.isClosed) return;
-    final now = DateTime.now();
+    final now = _now();
     if (!force &&
         _lastEmit != null &&
         now.difference(_lastEmit!) < const Duration(milliseconds: 200)) {

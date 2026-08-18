@@ -75,21 +75,21 @@ void main() {
       fetchJson: (url) async {
         expect(url.toString(), contains('rgsneddon/gnfp-wallet'));
         return {
-          'tag_name': 'v0.1.20',
-          'html_url': 'https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.1.20',
+          'tag_name': 'v0.1.0',
+          'html_url': 'https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.1.0',
           'assets': [
             {
-              'name': 'gnfp-wallet-0.1.20-linux.zip',
+              'name': 'gnfp-wallet-0.1.0-linux.zip',
               'browser_download_url':
-                  'https://github.com/rgsneddon/gnfp-wallet/releases/download/v0.1.20/gnfp-wallet-0.1.20-linux.zip',
+                  'https://github.com/rgsneddon/gnfp-wallet/releases/download/v0.1.0/gnfp-wallet-0.1.0-linux.zip',
             },
           ],
         };
       },
     );
-    final info = await checker.check(localVersion: '0.1.5', platform: 'linux');
+    final info = await checker.check(localVersion: '0.0.9', platform: 'linux');
     expect(info.updateAvailable, isTrue);
-    expect(info.publishedVersion, '0.1.20');
-    expect(info.updateUrl.endsWith('gnfp-wallet-0.1.20-linux.zip'), isTrue);
+    expect(info.publishedVersion, '0.1.0');
+    expect(info.updateUrl.endsWith('gnfp-wallet-0.1.0-linux.zip'), isTrue);
   });
 }

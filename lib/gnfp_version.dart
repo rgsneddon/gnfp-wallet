@@ -1,6 +1,7 @@
-/// Public wallet pin is 0.0.2 onward. Earlier 0.1.x / 1.x pins are 0.0.1.
+/// Public pins use digits 0–9 only: 0.0.1 … 0.0.9, then 0.1.0.
+/// Pre-reset 1.x and 0.1.10+ stay legacy (compare as 0.0.1).
 ///
-/// `versionFromCommitCount(n)` → `0.0.1` when n<=1, else `0.0.n`.
+/// `versionFromCommitCount(n)` → `0.0.1` when n<=1, else `0.{n~/10}.{n%10}`.
 library;
 
 class GnfpVersion {
@@ -8,21 +9,23 @@ class GnfpVersion {
 
   final int commitCount;
 
-  /// Progressive 0.0.n pin. Counts 0 and 1 stay on the 0.0.1 era.
+  /// Progressive pin. Counts 0 and 1 stay on the 0.0.1 era.
   String get numeric {
     final n = commitCount < 0 ? 0 : commitCount;
     if (n <= 1) return '0.0.1';
-    return '0.0.$n';
+    return '0.${n ~/ 10}.${n % 10}';
   }
 
   int get buildNumber => commitCount < 0 ? 0 : commitCount;
 
-  /// 1.x and 0.1.x are pre-reset. 0.0.2+ is the public series.
+  /// Old 1.x and pre-reset 0.1.10+ (patch ≥ 10). New 0.1.0–0.1.9 are public.
   static bool isLegacyPin(String version) {
     final p = version.split('.').map((s) => int.tryParse(s) ?? 0).toList();
     if (p.isEmpty) return true;
     if (p[0] > 0) return true;
-    if (p.length >= 2 && p[1] > 0) return true;
+    final minor = p.length >= 2 ? p[1] : 0;
+    final patch = p.length >= 3 ? p[2] : 0;
+    if (minor > 0 && patch >= 10) return true;
     return false;
   }
 

@@ -10,6 +10,26 @@ const gnfpCpuHashRounds = 8;
 const gnfpCpuHashPersonal = 'gnfp-cpu-v1';
 const gnfpCpuNonceHexLen = 16;
 
+/// Same rule as the book `jobDifficultyBits`: 0 / missing → 1; clamp 1–32.
+int jobDifficultyBits(Object? difficulty) {
+  final n = difficulty is num
+      ? difficulty.toInt()
+      : int.tryParse('$difficulty') ?? 1;
+  if (n < 1) return 1;
+  if (n > 32) return 32;
+  return n;
+}
+
+/// Same public H/s as the pool: accepted × 2^bits / elapsed.
+double verifiedWorkRate({
+  required int accepted,
+  required int bits,
+  required double elapsedSec,
+}) {
+  if (accepted <= 0 || elapsedSec <= 0) return 0;
+  return (accepted * (1 << jobDifficultyBits(bits))) / elapsedSec;
+}
+
 String clipHashField(String value) {
   if (value.length <= 256) return value;
   return value.substring(0, 256);

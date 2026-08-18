@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (v0.0.9)'
+        description: 'Release tag (v0.1.0)'
         required: true
-        default: 'v0.0.9'
+        default: 'v0.1.0'
 
 jobs:
   windows:
@@ -20,18 +20,18 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - run: flutter build windows --release --build-name=0.0.9 --build-number=9
+      - run: flutter build windows --release --build-name=0.1.0 --build-number=10
       - name: Zip Windows installer
         shell: pwsh
         run: |
-          $ver = "0.0.9"
+          $ver = "0.1.0"
           $src = "build\windows\x64\runner\Release"
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path "$src\*" -DestinationPath "dist\gnfp-wallet-$ver-windows.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: dist/gnfp-wallet-0.0.9-windows.zip
+          path: dist/gnfp-wallet-0.1.0-windows.zip
 
   linux:
     runs-on: ubuntu-latest
@@ -45,10 +45,10 @@ jobs:
         with:
           channel: stable
       - run: flutter pub get
-      - run: flutter build linux --release --build-name=0.0.9 --build-number=9
+      - run: flutter build linux --release --build-name=0.1.0 --build-number=10
       - name: Zip Linux + Arch
         run: |
-          ver=0.0.9
+          ver=0.1.0
           mkdir -p dist
           (cd build/linux/x64/release/bundle && zip -qry "$GITHUB_WORKSPACE/dist/gnfp-wallet-$ver-linux.zip" .)
           mkdir -p arch/gnfp-wallet
@@ -75,8 +75,8 @@ jobs:
         with:
           name: linux
           path: |
-            dist/gnfp-wallet-0.0.9-linux.zip
-            dist/gnfp-wallet-0.0.9-archlinux.zip
+            dist/gnfp-wallet-0.1.0-linux.zip
+            dist/gnfp-wallet-0.1.0-archlinux.zip
 
   publish:
     needs: [windows, linux]

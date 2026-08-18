@@ -329,7 +329,7 @@ void main() {
       }, onError: (_) {}, onDone: () {});
     }, onError: (Object e, StackTrace st) {});
 
-    Future<({int hashes, double rate})> runThreads(int threads) async {
+    Future<int> runThreads(int threads) async {
       final cmd = buildWalletMineCommand(
         address: addr,
         pool: '127.0.0.1:${server.port}',
@@ -349,24 +349,20 @@ void main() {
       final mark = miner.status.hashes;
       await Future<void>.delayed(const Duration(milliseconds: 600));
       final hashes = miner.status.hashes - mark;
-      final rate = miner.status.hashrate;
       await miner.stop();
       expect(miner.status.running, isFalse);
-      return (hashes: hashes, rate: rate);
+      return hashes;
     }
 
     final one = await runThreads(1);
     final many = await runThreads(4);
     expect(
-      many.hashes,
-      greaterThan(one.hashes),
-      reason: '4-thread hashes ${many.hashes} must exceed 1-thread ${one.hashes}',
+      many,
+      greaterThan(one),
+      reason: '4-thread hashes $many must exceed 1-thread $one',
     );
-    expect(
-      many.rate,
-      greaterThan(one.rate),
-      reason: '4-thread hashrate ${many.rate} must exceed 1-thread ${one.rate}',
-    );
+    // Public H/s is verified accepts, not farm hashes. Difficulty 24 rarely
+    // accepts in this window, so rate may be 0 on both runs.
     await server.close();
   });
 
