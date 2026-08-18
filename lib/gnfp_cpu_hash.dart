@@ -1,4 +1,4 @@
-/// Sequential gnfp-cpu-v1 work hash — same as gnfp-mine 1.0.9 / the Germany book.
+/// Sequential GNFPHash-v1 work hash — same as the official miner / Germany book.
 library;
 
 import 'dart:convert';
@@ -6,8 +6,9 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+const gnfpHashAlgorithm = 'GNFPHash';
 const gnfpCpuHashRounds = 8;
-const gnfpCpuHashPersonal = 'gnfp-cpu-v1';
+const gnfpCpuHashPersonal = 'GNFPHash-v1';
 const gnfpCpuNonceHexLen = 16;
 
 /// Same rule as the book `jobDifficultyBits`: 0 / missing → 1; clamp 1–32.
@@ -49,12 +50,15 @@ String gnfpWorkHash(String preWork, String nonce, [String solution = '']) {
   final pre = clipHashField(preWork);
   final n = clipHashField(nonce);
   final sol = clipHashField(solution);
-  var acc = sha256.convert(utf8.encode(gnfpCpuHashPersonal + pre + n + sol)).bytes;
+  var acc = sha256
+      .convert(utf8.encode(gnfpCpuHashPersonal + gnfpHashAlgorithm + pre + n + sol))
+      .bytes;
   for (var i = 0; i < gnfpCpuHashRounds; i += 1) {
     acc = sha256
         .convert(
           Uint8List.fromList([
             ...acc,
+            ...utf8.encode(gnfpCpuHashPersonal),
             ...utf8.encode('$i'),
             ...utf8.encode(pre),
             ...utf8.encode(n),

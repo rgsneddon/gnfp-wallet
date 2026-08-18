@@ -3,7 +3,7 @@
 $GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 
 - Pool: https://gnfp.restoreprivacy.online
-- Stratum: `de.restoreprivacy.online:1474` (TLS; gnfp-mine 1.0.9)
+- Stratum: `de.restoreprivacy.online:1474` (TLS; GNFPHash 1.0.0 — https://github.com/rgsneddon/GNFPHash)
 - Coin: GNFP (not PERC, not Beam)
 - Current pin: **0.1.0** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.1.0
 

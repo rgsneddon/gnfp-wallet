@@ -114,7 +114,7 @@ class _MineScreenState extends State<MineScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'gnfp-mine $gnfpMineVersion · pick threads, payout gnfp1, and a live pool. TLS on :1474.',
+              'GNFPHash $gnfpMineVersion · pick threads, payout gnfp1, and a live pool. TLS on :1474.',
               style: TextStyle(color: GnfpTheme.neonCyan),
             ),
             const SizedBox(height: 12),

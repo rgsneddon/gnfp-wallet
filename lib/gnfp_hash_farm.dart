@@ -32,27 +32,34 @@ class GnfpHashFarm {
     _inbox = ReceivePort();
     _sub = _inbox!.listen(_onMsg);
     for (var i = 0; i < n; i++) {
-      final ready = ReceivePort();
-      final iso = await Isolate.spawn(
-        gnfpHashWorkerMain,
-        ready.sendPort,
-        debugName: 'gnfp-hash-$i',
-      );
-      final port = await ready.first.timeout(const Duration(seconds: 5));
-      ready.close();
-      if (port is! SendPort) {
-        iso.kill(priority: Isolate.immediate);
-        throw StateError('hash worker $i did not send a port');
+      try {
+        final ready = ReceivePort();
+        final iso = await Isolate.spawn(
+          gnfpHashWorkerMain,
+          ready.sendPort,
+          debugName: 'gnfp-hash-$i',
+        );
+        final port = await ready.first.timeout(const Duration(seconds: 5));
+        ready.close();
+        if (port is! SendPort) {
+          iso.kill(priority: Isolate.immediate);
+          continue;
+        }
+        _workers.add(iso);
+        _ports.add(port);
+      } catch (_) {
+        // Keep isolates that already started; liveThreads reports that count.
       }
-      port.send({
+    }
+    final live = _ports.length;
+    for (var i = 0; i < live; i++) {
+      _ports[i].send({
         'type': 'init',
         'reply': _inbox!.sendPort,
         'workerId': i,
-        'stride': n,
+        'stride': live,
         'batch': batchSize < 1 ? 1 : batchSize,
       });
-      _workers.add(iso);
-      _ports.add(port);
     }
   }
 

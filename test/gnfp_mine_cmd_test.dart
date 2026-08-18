@@ -19,7 +19,9 @@ void main() {
     expect(cmd.command.contains('--notls'), isFalse);
     expect(cmd.tls, isTrue);
     expect(cmd.user, '$addr.worker');
-    expect(gnfpMineVersion, '1.1.0');
+    expect(gnfpMineVersion, '1.0.1');
+    expect(gnfpMineClient, 'GNFPHash');
+    expect(gnfpMineAlgorithm, 'GNFPHash');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
   });
 
@@ -119,14 +121,23 @@ void main() {
 
   test('cpu hash matches the live book personal and finds a 1-bit share', () {
     const pre = 'gnfp-wallet-seed';
-    const nonce = '0000000000000006';
-    final hash = gnfpWorkHash(pre, nonce, '');
+    String? nonce;
+    for (var i = 0; i < 200000; i++) {
+      final hex = i.toRadixString(16).padLeft(16, '0');
+      if (hashMeetsJob({'input': pre, 'difficulty': 1}, hex)) {
+        nonce = hex;
+        break;
+      }
+    }
+    expect(nonce, isNotNull);
+    final hash = gnfpWorkHash(pre, nonce!, '');
     expect(hash.length, 64);
     expect(hashMeetsJob({'input': pre, 'difficulty': 1}, nonce), isTrue);
-    final range = hashNonceRange({'input': pre, 'difficulty': 1}, 0, 8, 1);
-    expect(range.hashes, 8);
+    expect(gnfpCpuHashPersonal, 'GNFPHash-v1');
+    expect(gnfpHashAlgorithm, 'GNFPHash');
+    final range = hashNonceRange({'input': pre, 'difficulty': 1}, 0, 200000, 1);
+    expect(range.hashes, 200000);
     expect(range.shares, isNotEmpty);
-    expect(range.nextNonce, 8);
   });
 
   test('start hashing submits as this gnfp1.worker on a local stratum', () async {
@@ -181,7 +192,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
     }
     expect(submittedUser, cmd.user);
-    expect(submittedClient, 'gnfp-mine');
+    expect(submittedClient, 'GNFPHash');
     expect(miner.status.accepted, greaterThan(0));
     await miner.stop();
     await Future<void>.delayed(const Duration(milliseconds: 80));
@@ -302,11 +313,81 @@ void main() {
     expect(login, isNotNull);
     expect(login!['login'], cmd.user);
     expect(login!['threads'], 3);
-    expect(login!['client'], 'gnfp-mine');
+    expect(login!['threads'], miner.liveThreads);
+    expect(login!['client'], 'GNFPHash');
+    expect(login!['algorithm'], 'GNFPHash');
     expect(submit, isNotNull);
     expect(submit!['login'], cmd.user);
+    expect(submit!['threads'], miner.liveThreads);
     expect(submit!['threads'], 3);
     await miner.stop();
+    expect(miner.liveThreads, 0);
+    await server.close();
+  });
+
+  test('wire threads are farm isolates, not a higher requested count', () async {
+    const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final cmd = buildWalletMineCommand(
+      address: addr,
+      pool: '127.0.0.1:${server.port}',
+      threads: 16,
+      tls: false,
+      processors: 4,
+    )!;
+    expect(cmd.threads, 3);
+    Map<String, dynamic>? login;
+    Map<String, dynamic>? stats;
+    Map<String, dynamic>? submit;
+    server.listen((sock) {
+      sock.listen((data) {
+        for (final line in utf8.decode(data).split('\n')) {
+          if (line.trim().isEmpty) continue;
+          final msg = jsonDecode(line);
+          if (msg is! Map) continue;
+          if (msg['method'] == 'login') {
+            login = Map<String, dynamic>.from(msg);
+            sock.add(utf8.encode(
+              '${jsonEncode({
+                "jsonrpc": "2.0",
+                "method": "job",
+                "jobId": "j-live",
+                "id": "j-live",
+                "height": 2,
+                "difficulty": 1,
+                "input": "aaa",
+              })}\n',
+            ));
+          }
+          if (msg['method'] == 'stats') {
+            stats = Map<String, dynamic>.from(msg);
+          }
+          if (msg['method'] == 'submit') {
+            submit = Map<String, dynamic>.from(msg);
+            sock.add(utf8.encode(
+              '${jsonEncode({"code": 0, "description": "accepted", "method": "result"})}\n',
+            ));
+          }
+        }
+      }, onError: (_) {}, onDone: () {});
+    }, onError: (Object e, StackTrace st) {});
+    final miner = InWalletMiner(statsEvery: const Duration(milliseconds: 40));
+    await miner.start(cmd);
+    final deadline = DateTime.now().add(const Duration(seconds: 4));
+    while (DateTime.now().isBefore(deadline) &&
+        (login == null || submit == null || stats == null)) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(miner.liveThreads, 3);
+    expect(login, isNotNull);
+    expect(login!['threads'], miner.liveThreads);
+    expect(login!['threads'], isNot(16));
+    expect(stats, isNotNull);
+    expect(stats!['threads'], miner.liveThreads);
+    expect(submit, isNotNull);
+    expect(submit!['threads'], miner.liveThreads);
+    await miner.stop();
+    expect(miner.liveThreads, 0);
     await server.close();
   });
 

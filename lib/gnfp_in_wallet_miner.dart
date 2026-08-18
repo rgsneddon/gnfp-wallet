@@ -72,6 +72,15 @@ class InWalletMiner {
   final _updates = StreamController<InWalletMinerStatus>.broadcast();
 
   Stream<InWalletMinerStatus> get updates => _updates.stream;
+
+  /// Isolates actually hashing on this device — never requested --threads.
+  int get liveThreads {
+    final farm = _farm;
+    if (farm != null && farm.isRunning) return farm.threads;
+    if (_wantRun && _running && _cmd != null) return 1;
+    return 0;
+  }
+
   InWalletMinerStatus get status => InWalletMinerStatus(
         running: _running,
         accepted: _accepted,
@@ -170,9 +179,10 @@ class InWalletMiner {
       _send({
         'method': 'login',
         'login': cmd.user,
-        'threads': cmd.threads,
+        'threads': liveThreads,
         'client': gnfpMineClient,
         'version': gnfpMineVersion,
+        'algorithm': gnfpMineAlgorithm,
         'id': 1,
         'jsonrpc': '2.0',
       });
@@ -195,9 +205,10 @@ class InWalletMiner {
     _send({
       'method': 'stats',
       'login': cmd.user,
-      'threads': cmd.threads,
+      'threads': liveThreads,
       'client': gnfpMineClient,
       'version': gnfpMineVersion,
+      'algorithm': gnfpMineAlgorithm,
       'jsonrpc': '2.0',
     });
   }
@@ -336,9 +347,10 @@ class InWalletMiner {
     _send({
       'method': 'submit',
       'login': cmd.user,
-      'threads': cmd.threads,
+      'threads': liveThreads,
       'client': gnfpMineClient,
       'version': gnfpMineVersion,
+      'algorithm': gnfpMineAlgorithm,
       'id': job['jobId'] ?? job['id'] ?? '1',
       'nonce': nonce,
       'output': '',
@@ -347,7 +359,7 @@ class InWalletMiner {
     });
   }
 
-  /// Local fallback when isolate workers cannot start. Still scales by threads.
+  /// Local fallback when isolate workers cannot start. One main-isolate hasher.
   void _hashTick() {
     if (_farm != null && _farm!.isRunning) return;
     final job = _job;
@@ -355,8 +367,7 @@ class InWalletMiner {
     if (!_wantRun || !_running || job == null || cmd == null || _hashing) return;
     _hashing = true;
     try {
-      final threads = cmd.threads < 1 ? 1 : cmd.threads;
-      final budget = (maxHashesPerTick < 1 ? 1 : maxHashesPerTick) * threads;
+      final budget = maxHashesPerTick < 1 ? 1 : maxHashesPerTick;
       final got = hashNonceRange(job, _nonce + 1, budget, 1);
       _nonce = got.nextNonce - 1;
       _hashes += got.hashes;

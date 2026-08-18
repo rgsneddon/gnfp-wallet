@@ -5,8 +5,9 @@ import 'dart:io';
 
 import 'gnfp_ledger.dart';
 
-const gnfpMineVersion = '1.1.0';
-const gnfpMineClient = 'gnfp-mine';
+const gnfpMineVersion = '1.0.1';
+const gnfpMineClient = 'GNFPHash';
+const gnfpMineAlgorithm = 'GNFPHash';
 const gnfpMineDefaultPool = gnfpStratum;
 const gnfpMineDefaultThreads = 1;
 const gnfpMineTlsRequiredMsg =
