@@ -58,19 +58,43 @@ class GnfpSession {
     return File('$home/.gnfp/session.json');
   }
 
-  /// Older Mac / Linux drops that a version bump must still find.
-  static List<File> defaultLegacyStores({String? home}) {
-    final h = (home ?? Platform.environment['HOME'] ?? '').trim();
-    if (h.isEmpty) return const [];
-    final trimmed = h.endsWith('/') ? h.substring(0, h.length - 1) : h;
-    return [
-      File('$trimmed/.gnfp/session.json'),
-      File('$trimmed/Library/Application Support/gnfp/session.json'),
-      File('$trimmed/Library/Application Support/gnfp_wallet/session.json'),
-      File(
+  /// Older Mac / Linux / Windows drops that a version bump must still find.
+  static List<File> defaultLegacyStores({String? home, Map<String, String>? env}) {
+    final e = env ?? Platform.environment;
+    final out = <File>[];
+    void add(String path) {
+      final p = path.trim();
+      if (p.isEmpty) return;
+      if (out.any((f) => f.path == p)) return;
+      out.add(File(p));
+    }
+
+    final h = (home ?? e['HOME'] ?? e['USERPROFILE'] ?? '').trim();
+    if (h.isNotEmpty) {
+      final trimmed = (h.endsWith('/') || h.endsWith('\\'))
+          ? h.substring(0, h.length - 1)
+          : h;
+      add('$trimmed/.gnfp/session.json');
+      add('$trimmed${Platform.pathSeparator}GNFP${Platform.pathSeparator}session.json');
+      add('$trimmed/Library/Application Support/gnfp/session.json');
+      add('$trimmed/Library/Application Support/gnfp_wallet/session.json');
+      add('$trimmed/Library/Application Support/GNFP/session.json');
+      add(
         '$trimmed/Library/Containers/online.restoreprivacy.gnfpWallet/Data/Library/Application Support/GNFP/session.json',
-      ),
-    ];
+      );
+    }
+    final app = (e['APPDATA'] ?? '').trim();
+    if (app.isNotEmpty) {
+      add('$app${Platform.pathSeparator}gnfp${Platform.pathSeparator}session.json');
+      add('$app${Platform.pathSeparator}gnfp_wallet${Platform.pathSeparator}session.json');
+      add('$app${Platform.pathSeparator}GNFP Wallet${Platform.pathSeparator}session.json');
+    }
+    final local = (e['LOCALAPPDATA'] ?? '').trim();
+    if (local.isNotEmpty) {
+      add('$local${Platform.pathSeparator}GNFP${Platform.pathSeparator}session.json');
+      add('$local${Platform.pathSeparator}gnfp${Platform.pathSeparator}session.json');
+    }
+    return out;
   }
 
   /// Read any historical session JSON. Never invent an address.
@@ -173,6 +197,28 @@ class GnfpSession {
     } catch (_) {
       return null;
     }
+  }
+
+  double lastKnownSpendable(GnfpAddress addr) {
+    final raw = extra['spendable'];
+    if (raw is Map) {
+      final v = raw[addr.value] ?? raw['amount'];
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v.trim()) ?? 0;
+    }
+    if (raw is num) return raw.toDouble();
+    return 0;
+  }
+
+  void rememberSpendable(GnfpAddress addr, double amount) {
+    if (!(amount > 0)) return;
+    final prev = lastKnownSpendable(addr);
+    if (amount < prev) return;
+    extra['spendable'] = {
+      addr.value: amount,
+      'address': addr.value,
+      'amount': amount,
+    };
   }
 
   Future<void> persist() async {

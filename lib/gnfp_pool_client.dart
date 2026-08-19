@@ -138,9 +138,22 @@ class GnfpPoolClient {
     }
   }
 
+  /// Owner spendable from a book JSON row. Accepts number or decimal string.
+  static double parseSpendable(Map<String, dynamic> json) {
+    for (final key in const ['balance', 'spendable', 'gnfp', 'amount']) {
+      final v = json[key];
+      if (v is num) return v.toDouble();
+      if (v is String) {
+        final n = double.tryParse(v.trim());
+        if (n != null) return n;
+      }
+    }
+    return 0;
+  }
+
   Future<double> balance(String address) async {
     final json = await get('/api/wallet/balance?address=$address');
-    return (json['balance'] as num?)?.toDouble() ?? 0;
+    return parseSpendable(json);
   }
 
   Future<Map<String, dynamic>> snapshot() => get('/api/wallet/snapshot');

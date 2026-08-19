@@ -77,6 +77,29 @@ void main() {
     expect(raw.contains(kept), isTrue);
   });
 
+  test('Windows APPDATA/LOCALAPPDATA session is a version-bump legacy store', () {
+    final paths = GnfpSession.defaultLegacyStores(
+      home: r'C:\Users\amy',
+      env: {
+        'USERPROFILE': r'C:\Users\amy',
+        'APPDATA': r'C:\Users\amy\AppData\Roaming',
+        'LOCALAPPDATA': r'C:\Users\amy\AppData\Local',
+      },
+    ).map((f) => f.path.replaceAll('/', r'\'));
+    expect(paths, contains(r'C:\Users\amy\AppData\Roaming\gnfp\session.json'));
+    expect(paths, contains(r'C:\Users\amy\AppData\Local\GNFP\session.json'));
+    expect(paths, contains(r'C:\Users\amy\.gnfp\session.json'));
+  });
+
+  test('remembered spendable is never replaced by a lower amount', () {
+    final session = GnfpSession(store: File('${Directory.systemTemp.path}/gnfp-spend-keep.json'));
+    final addr = GnfpAddress('gnfp1cccccccccccccccccccccccccccccccccccccccc');
+    session.rememberSpendable(addr, 1200);
+    session.rememberSpendable(addr, 0);
+    session.rememberSpendable(addr, 50);
+    expect(session.lastKnownSpendable(addr), 1200);
+  });
+
   test('legacy ~/.gnfp session migrates into the new store without minting', () async {
     final dir = await Directory.systemTemp.createTemp('gnfp-legacy-mig');
     final old = File('${dir.path}/.gnfp/session.json')..parent.createSync(recursive: true);

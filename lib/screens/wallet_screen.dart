@@ -39,6 +39,7 @@ class _WalletScreenState extends State<WalletScreen> {
   int? networkTip;
   Timer? _poll;
   Timer? _retry;
+  bool _trustZero = false;
 
   static const double bannerHeight = 112;
 
@@ -61,7 +62,19 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _pullNetwork() async {
     try {
       final n = await widget.ledger.pool.balance(widget.address.value);
-      if (mounted) setState(() => networkBal = n);
+      if (!mounted) return;
+      setState(() {
+        if (n > 0) {
+          _trustZero = false;
+          networkBal = n;
+          widget.ledger.rememberSpendable(widget.address, n);
+        } else if (_trustZero) {
+          networkBal = n;
+        } else {
+          final kept = widget.ledger.balance(widget.address);
+          if (kept > 0) networkBal = kept;
+        }
+      });
     } catch (_) {}
     try {
       final tip = await widget.ledger.networkTip();
@@ -90,7 +103,10 @@ class _WalletScreenState extends State<WalletScreen> {
         to: GnfpAddress(toCtrl.text.trim()),
         amount: double.parse(amtCtrl.text),
       );
-      setState(() => status = 'sent');
+      setState(() {
+        status = 'sent';
+        _trustZero = true;
+      });
       await _pullNetwork();
     } catch (e) {
       setState(() => status = e.toString());
