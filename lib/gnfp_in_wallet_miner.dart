@@ -17,6 +17,7 @@ class InWalletMinerStatus {
     this.hashes = 0,
     this.height = 0,
     this.hashrate = 0,
+    this.localHashrate = 0,
     this.lastError = '',
     this.user = '',
   });
@@ -27,6 +28,7 @@ class InWalletMinerStatus {
   final int hashes;
   final int height;
   final double hashrate;
+  final double localHashrate;
   final String lastError;
   final String user;
 }
@@ -57,6 +59,7 @@ class InWalletMiner {
   Map<String, dynamic>? _job;
   WalletMineCommand? _cmd;
   DateTime? _firstHashAt;
+  DateTime? _startedAt;
   DateTime? _lastEmit;
   int _nonce = 0;
   int _accepted = 0;
@@ -69,6 +72,8 @@ class InWalletMiner {
   bool _running = false;
   bool _holdSubmit = false;
   bool _hashing = false;
+  final _pendingShares = <({String nonce, Map<String, dynamic> job})>[];
+  static const _maxQueued = 8;
   final _updates = StreamController<InWalletMinerStatus>.broadcast();
 
   Stream<InWalletMinerStatus> get updates => _updates.stream;
@@ -88,6 +93,7 @@ class InWalletMiner {
         hashes: _hashes,
         height: _height,
         hashrate: _rate,
+        localHashrate: _localRate,
         lastError: _error,
         user: _cmd?.user ?? '',
       );
@@ -98,6 +104,15 @@ class InWalletMiner {
     final sec = _now().difference(start).inMilliseconds / 1000;
     if (sec <= 0) return 0;
     return verifiedWorkRate(accepted: _accepted, bits: _bits, elapsedSec: sec);
+  }
+
+  double get _localRate {
+    if (_hashes <= 0) return 0;
+    final start = _startedAt ?? _firstHashAt;
+    if (start == null) return 0;
+    final sec = _now().difference(start).inMilliseconds / 1000;
+    if (sec <= 0) return 0;
+    return _hashes / sec;
   }
 
   /// Starts hashing as [cmd.user] so pool credit lands on that gnfp1.
@@ -113,7 +128,9 @@ class InWalletMiner {
     _bits = 1;
     _nonce = 0;
     _holdSubmit = false;
+    _pendingShares.clear();
     _firstHashAt = null;
+    _startedAt = _now();
     _emit(force: true);
     await _startFarm(cmd.threads);
     await _openSocket();
@@ -270,6 +287,7 @@ class InWalletMiner {
     _tearSocket();
     _running = false;
     _holdSubmit = false;
+    _pendingShares.clear();
     _emit(force: true);
   }
 
@@ -283,6 +301,7 @@ class InWalletMiner {
     _tearSocket();
     _running = false;
     _holdSubmit = false;
+    _pendingShares.clear();
     _emit(force: true);
   }
 
@@ -318,31 +337,78 @@ class InWalletMiner {
       _height = (msg['height'] as num?)?.toInt() ?? _height;
       _bits = jobDifficultyBits(msg['difficulty'] ?? _bits);
       _holdSubmit = false;
+      _pendingShares.clear();
       _farm?.setJob(msg);
       _farm?.go();
       _emit(force: true);
       _hashTick();
       return;
     }
-    final desc = '${msg['description'] ?? msg['result'] ?? ''}'.toLowerCase();
+    final desc = '${msg['description'] ?? msg['result'] ?? msg['error'] ?? ''}'.toLowerCase();
+    final formed = msg['formed'] == true ||
+        (msg['block'] is Map && msg['block']['formed'] == true) ||
+        msg['sealed'] != null;
+    if (desc.contains('old_miner_refused') || desc.contains('client_required')) {
+      _rejected += 1;
+      _holdSubmit = false;
+      _error = gnfpMineOldMinerHint;
+      _farm?.go();
+      _flushPending();
+      _emit(force: true);
+      return;
+    }
+    if (desc.contains('worker_too') || desc.contains('worker_invalid')) {
+      _rejected += 1;
+      _holdSubmit = false;
+      _farm?.go();
+      _flushPending();
+      _emit(force: true);
+      return;
+    }
     // Pool login is code=0 "Login Successful". Share ack is "accepted" (code=1).
-    if (desc.contains('accept')) {
+    if (formed) {
       _accepted += 1;
       _firstHashAt ??= _now();
       _holdSubmit = false;
       _farm?.go();
+      _flushPending();
+      _emit(force: true);
+    } else if (desc.contains('accept')) {
+      _accepted += 1;
+      _firstHashAt ??= _now();
+      _holdSubmit = false;
+      _farm?.go();
+      _flushPending();
       _emit(force: true);
     } else if (desc.contains('reject')) {
       _rejected += 1;
       _holdSubmit = false;
       _farm?.go();
+      _flushPending();
       _emit(force: true);
     }
   }
 
+  void _flushPending() {
+    if (_holdSubmit || _pendingShares.isEmpty) return;
+    final next = _pendingShares.removeAt(0);
+    _sendShare(next.nonce, next.job);
+  }
+
   void _submitShare(String nonce, Map<String, dynamic> job) {
     final cmd = _cmd;
-    if (!_wantRun || cmd == null || _sock == null || _holdSubmit) return;
+    if (!_wantRun || cmd == null || _sock == null) return;
+    if (_holdSubmit) {
+      if (_pendingShares.length >= _maxQueued) return;
+      _pendingShares.add((nonce: nonce, job: job));
+      return;
+    }
+    _sendShare(nonce, job);
+  }
+
+  void _sendShare(String nonce, Map<String, dynamic> job) {
+    final cmd = _cmd;
+    if (!_wantRun || cmd == null || _sock == null) return;
     _holdSubmit = true;
     _send({
       'method': 'submit',

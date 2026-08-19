@@ -19,7 +19,9 @@ void main() {
     expect(cmd.command.contains('--notls'), isFalse);
     expect(cmd.tls, isTrue);
     expect(cmd.user, '$addr.worker');
-    expect(gnfpMineVersion, '1.0.1');
+    expect(cmd.worker, 'worker');
+    expect(cmd.command, contains('--worker worker'));
+    expect(gnfpMineVersion, '1.0.2');
     expect(gnfpMineClient, 'GNFPHash');
     expect(gnfpMineAlgorithm, 'GNFPHash');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
@@ -102,6 +104,28 @@ void main() {
     expect(cmd.command, contains('--user $other.worker'));
     expect(cmd.command, contains('--threads 8'));
     expect(cmd.tls, isTrue);
+  });
+
+  test('worker name is user-chosen 1–24 chars, not hardcoded', () {
+    const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
+    expect(normalizeMineWorker(''), 'worker');
+    expect(normalizeMineWorker('1'), '1');
+    expect(normalizeMineWorker('a'), 'a');
+    expect(normalizeMineWorker('ryzen5600'), 'ryzen5600');
+    expect(normalizeMineWorker('x' * 24), 'x' * 24);
+    expect(normalizeMineWorker('x' * 25), isNull);
+    expect(normalizeMineWorker('nope!'), isNull);
+    expect(parseMinePayout(addr)?.worker, 'worker');
+    expect(parseMinePayout('$addr.1')?.worker, '1');
+    expect(parseMinePayout(addr, worker: 'rig')?.worker, 'rig');
+    expect(parseMinePayout('$addr.old', worker: '1')?.worker, '1');
+    expect(parseMinePayout('$addr.${'z' * 25}'), isNull);
+    final named = buildWalletMineCommand(address: addr, worker: '1')!;
+    expect(named.user, '$addr.1');
+    expect(named.worker, '1');
+    expect(named.command, contains('--worker 1'));
+    expect(named.command.contains('.worker'), isFalse);
+    expect(buildWalletMineCommand(address: addr, worker: 'x' * 25), isNull);
   });
 
   test('thread choices stop at device processors minus 1', () {

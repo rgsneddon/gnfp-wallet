@@ -33,7 +33,8 @@ class _MineScreenState extends State<MineScreen> {
   late InWalletMinerStatus status = miner.status;
   late final TextEditingController payoutCtrl;
   late final TextEditingController poolCtrl;
-  int threads = gnfpMineDefaultThreads;
+  late final TextEditingController workerCtrl;
+  late int threads;
   String poolId = gnfpMinePools.first.id;
 
   int get maxThreads => gnfpMineMaxThreads(processors: widget.processors);
@@ -51,6 +52,7 @@ class _MineScreenState extends State<MineScreen> {
       threads: threads,
       tls: defaultTlsForPool(host),
       processors: widget.processors,
+      worker: workerCtrl.text,
     );
   }
 
@@ -59,6 +61,8 @@ class _MineScreenState extends State<MineScreen> {
     super.initState();
     payoutCtrl = TextEditingController(text: widget.address.value);
     poolCtrl = TextEditingController(text: gnfpMinePools.first.hostPort);
+    workerCtrl = TextEditingController(text: gnfpMineDefaultWorker);
+    threads = maxThreads;
     _sub = miner.updates.listen((s) {
       if (mounted) setState(() => status = s);
     });
@@ -78,6 +82,7 @@ class _MineScreenState extends State<MineScreen> {
     _sub?.cancel();
     payoutCtrl.dispose();
     poolCtrl.dispose();
+    workerCtrl.dispose();
     if (widget.miner == null) miner.stop();
     super.dispose();
   }
@@ -114,7 +119,7 @@ class _MineScreenState extends State<MineScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'GNFPHash $gnfpMineVersion · pick threads, payout gnfp1, and a live pool. TLS on :1474.',
+              'GNFPHash $gnfpMineVersion · pick threads, payout gnfp1, worker name (1–24), and a live pool. TLS on :1474.',
               style: TextStyle(color: GnfpTheme.neonCyan),
             ),
             const SizedBox(height: 12),
@@ -198,6 +203,20 @@ class _MineScreenState extends State<MineScreen> {
                 child: const Text('Use this wallet'),
               ),
             ),
+            TextField(
+              key: const Key('gnfp-mine-worker'),
+              controller: workerCtrl,
+              enabled: !locked,
+              maxLength: gnfpMineMaxWorkerLen,
+              style: const TextStyle(color: GnfpTheme.cream, fontSize: 13),
+              decoration: const InputDecoration(
+                isDense: true,
+                labelText: 'Worker name',
+                helperText: '1–24 letters, digits, _ or -. Yours to choose.',
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               key: const Key('gnfp-mine-threads'),
               value: threadChoices.contains(threads) ? threads : threadChoices.last,
@@ -263,7 +282,7 @@ class _MineScreenState extends State<MineScreen> {
             const SizedBox(height: 12),
             Text(
               status.running
-                  ? 'hashing as ${status.user} · ${status.hashrate.toStringAsFixed(1)} H/s · accepted ${status.accepted}'
+                  ? 'hashing as ${status.user} · ${status.localHashrate.toStringAsFixed(1)} H/s local · ${status.hashrate.toStringAsFixed(1)} H/s verified · accepted ${status.accepted}'
                   : 'idle',
               key: const Key('gnfp-mine-status'),
               style: const TextStyle(color: GnfpTheme.cream),
