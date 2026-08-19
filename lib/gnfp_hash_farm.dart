@@ -129,7 +129,6 @@ Future<void> _gnfpHashWorkerLoop(ReceivePort inbox) async {
   var stride = 1;
   var batch = 32;
   var start = 0;
-  var hold = false;
   var running = true;
   Map<String, dynamic>? job;
 
@@ -150,9 +149,8 @@ Future<void> _gnfpHashWorkerLoop(ReceivePort inbox) async {
         workerId = (msg['workerId'] as num?)?.toInt() ?? workerId;
         stride = _atLeast1(msg['stride'] ?? stride);
         start = workerId;
-        hold = false;
       case 'go':
-        hold = false;
+        break;
       case 'stop':
         running = false;
     }
@@ -167,13 +165,12 @@ Future<void> _gnfpHashWorkerLoop(ReceivePort inbox) async {
       if (got.hashes > 0) {
         out.send({'type': 'hashed', 'n': got.hashes});
       }
-      if (!hold && got.shares.isNotEmpty) {
+      for (final nonce in got.shares) {
         out.send({
           'type': 'share',
-          'nonce': got.shares.first,
+          'nonce': nonce,
           'job': current,
         });
-        hold = true;
       }
       await Future<void>.delayed(Duration.zero);
     } else {
