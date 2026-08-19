@@ -94,11 +94,15 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
     try {
       final loaded = await session.ensureAddress(widget.ledger);
       if (!mounted) return;
+      final cached = session.lastKnownSpendable(loaded);
+      if (cached > 0) widget.ledger.rememberSpendable(loaded, cached);
       setState(() {
         address = loaded;
         ready = true;
       });
-      widget.ledger.syncSpendable(loaded).then((_) {
+      widget.ledger.syncSpendable(loaded).then((live) {
+        if (live > 0) session.rememberSpendable(loaded, live);
+        session.persist();
         if (mounted) setState(() {});
       }).catchError((_) {});
       widget.ledger.syncOwnerHistory(loaded).then((_) {

@@ -128,19 +128,34 @@ class GnfpLedger {
     _balances.putIfAbsent(address.value, () => 0);
   }
 
+  /// Keep a recovered spendable so an update cannot flash zero.
+  void rememberSpendable(GnfpAddress address, double amount) {
+    if (!address.isValid) return;
+    adopt(address);
+    final n = amount;
+    if (!n.isFinite || n <= 0) return;
+    final prev = balance(address);
+    if (n > prev) _balances[address.value] = n;
+  }
+
   /// Pull this address's spendable amount from the live book.
-  /// App updates keep the same gnfp1; the book is the balance of record.
+  /// App updates keep the same gnfp1. A live 0 never wipes a known amount.
   Future<double> syncSpendable(GnfpAddress address) async {
     if (!address.isValid) {
       throw ArgumentError('not a GNFP address');
     }
     adopt(address);
+    final previous = balance(address);
     try {
       final live = await pool.balance(address.value);
-      _balances[address.value] = live;
-      return live;
-    } catch (_) {
+      if (live > previous) {
+        _balances[address.value] = live;
+      } else if (live > 0) {
+        _balances[address.value] = live;
+      }
       return balance(address);
+    } catch (_) {
+      return previous;
     }
   }
 
@@ -253,21 +268,34 @@ class GnfpLedger {
   }
 
   Future<void> refresh() async {
-    final snap = await pool.snapshot();
-    _balances
-      ..clear()
-      ..addAll(
-        (snap['balances'] as Map? ?? {}).map(
-          (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
+    final kept = Map<String, double>.from(_balances);
+    try {
+      final snap = await pool.snapshot();
+      final incoming = (snap['balances'] as Map? ?? {}).map(
+        (k, v) => MapEntry(
+          k.toString(),
+          v is num ? v.toDouble() : (double.tryParse('$v') ?? 0),
         ),
       );
-    _txs
-      ..clear()
-      ..addAll(
-        ((snap['txs'] as List?) ?? []).map(
-          (row) => GnfpTx.fromJson(Map<String, dynamic>.from(row as Map)),
-        ),
-      );
+      if (incoming.isEmpty) return;
+      for (final e in incoming.entries) {
+        final prev = kept[e.key] ?? 0;
+        _balances[e.key] = e.value > 0 ? e.value : prev;
+      }
+      if (snap['txs'] is List) {
+        _txs
+          ..clear()
+          ..addAll(
+            ((snap['txs'] as List?) ?? []).map(
+              (row) => GnfpTx.fromJson(Map<String, dynamic>.from(row as Map)),
+            ),
+          );
+      }
+    } catch (_) {
+      _balances
+        ..clear()
+        ..addAll(kept);
+    }
   }
 
   Map<String, dynamic> snapshot() => {

@@ -56,6 +56,24 @@ void main() {
   GnfpLedger liveLedger() =>
       GnfpLedger(pool: GnfpPoolClient(baseUrl: pool!.uri.toString()));
 
+  test('syncSpendable does not wipe a known amount with live zero', () async {
+    final ledger = GnfpLedger(
+      pool: GnfpPoolClient(baseUrl: 'http://127.0.0.1:1'),
+    );
+    final a = ledger.createAddress(seed: 'keep-coins');
+    ledger.rememberSpendable(a, 1200);
+    expect(ledger.balance(a), 1200);
+    final kept = await ledger.syncSpendable(a);
+    expect(kept, 1200);
+    expect(ledger.balance(a), 1200);
+  });
+
+  test('parseSpendable reads string balances from the book', () {
+    expect(GnfpPoolClient.parseSpendable({'balance': '1200.5'}), 1200.5);
+    expect(GnfpPoolClient.parseSpendable({'balance': 12}), 12);
+    expect(GnfpPoolClient.parseSpendable({}), 0);
+  });
+
   test('self-mint receive and proof-less mining receive do not raise balance', () async {
     final ledger = liveLedger();
     final a = ledger.createAddress(seed: 'alice-nomint');
