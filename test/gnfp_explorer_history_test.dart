@@ -41,6 +41,7 @@ void main() {
           'asset': 'GNFP',
           'memo': 'from friend',
           'height': 30190,
+          'foundAt': 2000,
         },
         {
           'id': 'book-sx',
@@ -50,6 +51,7 @@ void main() {
           'kind': 'send',
           'asset': 'GNFP',
           'memo': 'out',
+          'foundAt': 1000,
         },
       ]),
     );
@@ -57,7 +59,7 @@ void main() {
     expect(ledger.transactions, isEmpty);
 
     final dest = File(
-      '${Directory.systemTemp.path}/gnfp-explorer-export-test.csv',
+      '${Directory.systemTemp.path}/gnfp-explorer-export-test.xls',
     );
     if (dest.existsSync()) dest.deleteSync();
     addTearDown(() {
@@ -97,11 +99,85 @@ void main() {
     await tester.tap(find.byKey(const Key('gnfp-owner-export')));
     await tester.pump();
     expect(dest.existsSync(), isTrue);
-    final csv = dest.readAsStringSync();
-    expect(csv, startsWith(ownerLedgerSpreadsheetHeader));
-    expect(csv, contains('receive'));
-    expect(csv, contains('your address'));
-    expect(csv, contains(peer));
+    expect(dest.path.endsWith('.xls'), isTrue);
+    final xls = dest.readAsStringSync();
+    expect(xls, contains('Excel.Sheet'));
+    expect(xls, contains('receive'));
+    expect(xls, contains('your address'));
+    expect(xls, contains(peer));
+    expect(xls.indexOf('book-rx'), lessThan(xls.indexOf('book-sx')));
     expect(find.byKey(const Key('gnfp-owner-export-status')), findsOneWidget);
+  });
+
+  testWidgets('positive balance never shows empty-movements copy', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final owner = GnfpLedger().createAddress(seed: 'bal-hist');
+    final ledger = GnfpLedger(pool: BookHistoryClient(const []));
+    ledger.adopt(owner);
+    ledger.rememberSpendable(owner, 4.5);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExplorerScreen(ledger: ledger, address: owner),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('No movements on this address yet.'), findsNothing);
+    expect(find.text('4.5'), findsOneWidget);
+  });
+
+  testWidgets('new book credit lands newest-first after the explorer poll', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    const peer = 'gnfp1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    final owner = GnfpLedger().createAddress(seed: 'live-hist');
+    final txs = <Map<String, dynamic>>[
+      {
+        'id': 'old-sx',
+        'from': owner.value,
+        'to': peer,
+        'amount': 1,
+        'kind': 'send',
+        'foundAt': 1000,
+      },
+    ];
+    final ledger = GnfpLedger(pool: BookHistoryClient(txs));
+    ledger.adopt(owner);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExplorerScreen(ledger: ledger, address: owner),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-owner-kind-old-sx')), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-owner-kind-live-rx')), findsNothing);
+    txs.add({
+      'id': 'live-rx',
+      'from': peer,
+      'to': owner.value,
+      'amount': 7,
+      'kind': 'send',
+      'foundAt': 9000,
+    });
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-owner-kind-live-rx')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-live-rx'))).data, 'receive');
+    expect(
+      tester.widget<Text>(find.byKey(const Key('gnfp-owner-amount-live-rx'))).data,
+      '7.0',
+    );
+    expect(find.text('No movements on this address yet.'), findsNothing);
+    final liveY = tester.getTopLeft(find.byKey(const Key('gnfp-owner-kind-live-rx'))).dy;
+    final oldY = tester.getTopLeft(find.byKey(const Key('gnfp-owner-kind-old-sx'))).dy;
+    expect(liveY, lessThan(oldY));
   });
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gnfp_wallet/gnfp_build_stamp.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_session.dart';
 import 'package:gnfp_wallet/gnfp_update.dart';
@@ -44,5 +45,42 @@ void main() {
     final image = tester.widget<Image>(find.byKey(const Key('gnfp-logo')));
     expect(image.image, isA<AssetImage>());
     expect((image.image as AssetImage).assetName, 'assets/logo.png');
+  });
+
+  test('core-wallet title is \$GNFP core wallet v plus the pin', () {
+    expect(gnfpCoreWalletTitle('0.1.7'), r'$GNFP core wallet v0.1.7');
+    expect(kGnfpCoreWalletTitlePrefix, r'$GNFP core wallet v');
+  });
+
+  testWidgets('MaterialApp title is \$GNFP core wallet v plus the pin', (tester) async {
+    final store = File('${Directory.systemTemp.path}/gnfp-title-session.json');
+    if (store.existsSync()) store.deleteSync();
+    await tester.pumpWidget(
+      GnfpWalletApp(
+        ledger: GnfpLedger(),
+        version: '0.1.7',
+        session: GnfpSession(store: store),
+        updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
+      ),
+    );
+    await tester.pump();
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.title, r'$GNFP core wallet v0.1.7');
+  });
+
+  test('native window and launcher titles use \$GNFP core wallet', () {
+    const needle = r'$GNFP core wallet';
+    expect(File('macos/Runner/MainFlutterWindow.swift').readAsStringSync(),
+        contains(r'self.title = "$GNFP core wallet v\(ver)"'));
+    expect(File('macos/Runner/Base.lproj/MainMenu.xib').readAsStringSync(),
+        contains(needle));
+    expect(File('windows/runner/main.cpp').readAsStringSync(), contains(needle));
+    expect(File('linux/runner/my_application.cc').readAsStringSync(),
+        contains(needle));
+    expect(File('linux/gnfp_wallet.desktop').readAsStringSync(), contains(needle));
+    expect(File('android/app/build.gradle.kts').readAsStringSync(),
+        contains(r'\$GNFP core wallet v'));
+    expect(File('ios/Runner/Info.plist').readAsStringSync(), contains(needle));
+    expect(File('macos/Runner/Info.plist').readAsStringSync(), contains(needle));
   });
 }

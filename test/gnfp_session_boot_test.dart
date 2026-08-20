@@ -127,8 +127,12 @@ void main() {
 
   test('parseStore restores a backup phrase and ignores empty login-only files', () {
     final a = GnfpLedger().createAddress(seed: 'phrase-keep');
-    final phrase = backupPhraseFor(a);
-    final rec = GnfpSession.parseStore({'backupPhrase': phrase, 'loginName': 'x'});
+    final phrase = backupPhraseFor(a, seed: 'phrase-keep');
+    final rec = GnfpSession.parseStore({
+      'backupPhrase': phrase,
+      'address': a.value,
+      'loginName': 'x',
+    });
     expect(rec!.address, a.value);
     expect(GnfpSession.parseStore({'login': 'only'}), isNull);
   });

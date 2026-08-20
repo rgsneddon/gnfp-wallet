@@ -41,6 +41,7 @@ void main() {
     expect(find.byKey(const Key('gnfp-shell')), findsOneWidget);
     expect(find.byKey(const Key('gnfp-logo')), findsOneWidget);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.title, r'$GNFP core wallet v0.0.5');
     expect(app.theme!.colorScheme.primary, GnfpTheme.neonCyan);
     expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.black);
     expect(find.textContaining('GNFP'), findsWidgets);
@@ -104,8 +105,15 @@ void main() {
     expect(find.byKey(const Key('gnfp-receive-hint')), findsNothing);
     expect(find.byKey(const Key('gnfp-miner-cmd')), findsNothing);
     expect(find.textContaining('perc-mine'), findsNothing);
-    expect(find.byKey(const Key('gnfp-credit-miner')), findsOneWidget);
-    expect(find.text('Credit wallet with pending GNFP'), findsOneWidget);
+    expect(find.byKey(const Key('gnfp-credit-miner')), findsNothing);
+    expect(find.text('Credit wallet with pending GNFP'), findsNothing);
+    expect(find.text('SOCIAL CHANNELS'), findsOneWidget);
+    expect(find.text('DISCORD'), findsOneWidget);
+    expect(find.text('TELEGRAM'), findsOneWidget);
+    expect(find.text('BitcoinTalk'), findsOneWidget);
+    expect(find.textContaining('discord.com'), findsNothing);
+    expect(find.textContaining('t.me/'), findsNothing);
+    expect(find.textContaining('bitcointalk.org'), findsNothing);
     final sendDx = tester.getTopLeft(find.byKey(const Key('gnfp-send'))).dx;
     final toDx = tester.getTopLeft(find.byKey(const Key('gnfp-send-to'))).dx;
     expect(sendDx, lessThan(toDx));
@@ -462,47 +470,10 @@ void main() {
       ),
     );
     await pumpBoot(tester);
-    expect(find.byKey(const Key('gnfp-credit-miner')), findsOneWidget);
-
-    Future<void> tapCredit(String expected) async {
-      await tester.ensureVisible(find.byKey(const Key('gnfp-credit-miner')));
-      await tester.tap(find.byKey(const Key('gnfp-credit-miner')));
-      await tester.pump();
-      for (var i = 0; i < 40; i++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 50)),
-        );
-        await tester.pump(const Duration(milliseconds: 50));
-        final text =
-            tester.widget<Text>(find.byKey(const Key('gnfp-credit-status'))).data ??
-                '';
-        if (text == expected) return;
-      }
-    }
-
-    String status() =>
-        tester.widget<Text>(find.byKey(const Key('gnfp-credit-status'))).data ?? '';
-
-    await tapCredit(gnfpCreditNone);
-    expect(status(), gnfpCreditNone);
-    expect(status().contains('StateError'), isFalse);
-
-    await tester.runAsync(() {
-      return miner.miningReceive(
-        to: addr,
-        amount: 5,
-        nonce: '0000000000000006',
-        solution: '',
-        preWork: 'gnfp-wallet-seed',
-      );
-    });
-    await tapCredit(gnfpCreditAdded);
-    expect(status(), gnfpCreditAdded);
-    expect(find.textContaining('StateError'), findsNothing);
-
-    await tapCredit(gnfpCreditNone);
-    expect(status(), gnfpCreditNone);
-    expect(find.textContaining('Exception'), findsNothing);
+    expect(find.byKey(const Key('gnfp-credit-miner')), findsNothing);
+    expect(find.text('Credit wallet with pending GNFP'), findsNothing);
+    expect(find.text('SOCIAL CHANNELS'), findsOneWidget);
+    expect(find.text('DISCORD'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     http.close(force: true);

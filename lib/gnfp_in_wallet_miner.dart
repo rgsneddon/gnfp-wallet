@@ -165,6 +165,7 @@ class InWalletMiner {
   }
 
   void _onFarmShare(String nonce, Map<String, dynamic> job) {
+    if (_job == null) return;
     _submitShare(nonce, job);
   }
 
@@ -400,6 +401,9 @@ class InWalletMiner {
   void _submitShare(String nonce, Map<String, dynamic> job) {
     final cmd = _cmd;
     if (!_wantRun || cmd == null || _sock == null) return;
+    final liveId = '${_job?['jobId'] ?? _job?['id'] ?? ''}';
+    final foundId = '${job['jobId'] ?? job['id'] ?? ''}';
+    if (liveId.isEmpty || foundId != liveId) return;
     if (_holdSubmit) {
       if (_pendingShares.length >= _maxQueued) return;
       _pendingShares.add((nonce: nonce, job: job));

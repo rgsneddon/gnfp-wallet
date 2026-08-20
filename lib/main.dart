@@ -141,6 +141,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
       BackupScreen(
         address: address,
         ledger: widget.ledger,
+        seed: session.seed,
         onRestored: (a) async {
           await session.rememberAddress(widget.ledger, a);
           setState(() => address = a);
@@ -155,7 +156,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
       const VpnScreen(),
     ];
     return MaterialApp(
-      title: 'GNFP Wallet',
+      title: gnfpCoreWalletTitle(stampedVersion),
       theme: GnfpTheme.dark(),
       home: MacosApplicationsHint(
         launchExecutable: widget.launchExecutable,

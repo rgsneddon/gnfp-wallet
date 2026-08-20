@@ -114,17 +114,14 @@ void main() {
         ),
       ],
     ).reversed.toList();
-    final csv = ownerLedgerSpreadsheet(address: owner, rows: rows);
-    expect(csv, startsWith('$ownerLedgerSpreadsheetHeader\n'));
-    expect(csv, contains('receive'));
-    expect(csv, contains(ownerAddressLabel));
-    expect(csv, contains(peer));
-    expect(csv, contains('"from friend, quoted"'));
-    expect(csv.contains(owner), isFalse);
-    final lines = csv.trim().split('\n');
-    expect(lines.length, 3);
-    expect(lines[1], startsWith('sx-1,send,$ownerAddressLabel,$peer,1.0,GNFP,'));
-    expect(lines[2], startsWith('rx-1,receive,$peer,$ownerAddressLabel,12.5,GNFP,'));
+    final xls = ownerLedgerSpreadsheet(address: owner, rows: rows);
+    expect(xls, contains('Excel.Sheet'));
+    expect(xls, contains('receive'));
+    expect(xls, contains(ownerAddressLabel));
+    expect(xls, contains(peer));
+    expect(xls, contains('from friend, quoted'));
+    expect(xls.contains(owner), isFalse);
+    expect(xls.indexOf('sx-1'), lessThan(xls.indexOf('rx-1')));
   });
 }
 

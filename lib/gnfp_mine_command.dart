@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'gnfp_ledger.dart';
 
-const gnfpMineVersion = '1.0.4';
+const gnfpMineVersion = '1.0.5';
 const gnfpMineClient = 'GNFPHash';
 const gnfpMineAlgorithm = 'GNFPHash';
 const gnfpMineDefaultPool = gnfpStratum;
@@ -97,18 +97,18 @@ GnfpCpuInventory gnfpDeviceCpuInventory({int? processors, int? physical}) {
   return GnfpCpuInventory(cpuCores: cores, cpuThreads: threads, smt: smt);
 }
 
-/// Cap at physical cpuCores (1 thread = 1 core). SMT pairs are not extra honor.
+/// Cap at logical SMT threads (12-thread CPU can run 10). Hard clamp is not here.
 int gnfpHonorThreads(int requested, {int? processors, int? physical}) {
   final cap = gnfpDeviceCpuInventory(processors: processors, physical: physical)
-      .cpuCores;
+      .cpuThreads;
   if (requested < 1) return 1;
   return requested > cap ? cap : requested;
 }
 
-/// Leave one core free: max selectable threads is physical cores minus 1.
+/// Leave one logical thread free: max selectable is SMT threads minus 1.
 int gnfpMineMaxThreads({int? processors, int? physical}) {
   final n = gnfpDeviceCpuInventory(processors: processors, physical: physical)
-      .cpuCores;
+      .cpuThreads;
   if (n <= 1) return 1;
   return n - 1;
 }

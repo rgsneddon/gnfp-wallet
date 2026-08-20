@@ -183,7 +183,7 @@ void main() {
     await tester.tap(find.byKey(const Key('gnfp-mine-pool')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.textContaining('Helsinki front').last);
+    await tester.tap(find.textContaining('Singapore').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -191,9 +191,9 @@ void main() {
         tester.widget<SelectableText>(find.byKey(const Key('gnfp-miner-cmd'))).data ?? '';
     expect(cmd, contains('--user $other.worker'));
     expect(cmd, contains('--threads 3'));
-    expect(cmd, contains('--pool hel.restoreprivacy.online:1474'));
+    expect(cmd, contains('--pool sg.restoreprivacy.online:1474'));
     expect(cmd.contains('--notls'), isFalse);
-    expect(gnfpMinePools.map((p) => p.hostPort), contains('hel.restoreprivacy.online:1474'));
+    expect(gnfpMinePools.map((p) => p.hostPort), contains('sg.restoreprivacy.online:1474'));
   });
 
   testWidgets('owned miner dispose stops hashing and does not log in again', (tester) async {

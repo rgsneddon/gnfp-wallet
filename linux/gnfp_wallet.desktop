@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=GNFP Wallet
+Name=$GNFP core wallet
 Version=1.1.13
 Exec=gnfp_wallet
 Icon=gnfp_wallet

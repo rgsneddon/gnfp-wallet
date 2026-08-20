@@ -7,6 +7,11 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+#ifndef FLUTTER_VERSION
+#define FLUTTER_VERSION "0.1.7"
+#endif
+#define GNFP_WINDOW_TITLE "$GNFP core wallet v" FLUTTER_VERSION
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
@@ -45,12 +50,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "gnfp_wallet");
+    gtk_header_bar_set_title(header_bar, GNFP_WINDOW_TITLE);
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
-  } else {
-    gtk_window_set_title(window, "gnfp_wallet");
   }
+  gtk_window_set_title(window, GNFP_WINDOW_TITLE);
 
   gtk_window_set_default_size(window, 1280, 720);
 

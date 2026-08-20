@@ -49,6 +49,22 @@ void main() {
     expect(info.updateUrl, contains('gnfp-wallet-0.0.2-macos.zip'));
   });
 
+  test('0.1.6 may stay; 0.1.7 is an optional newer pin not a block', () {
+    const feed = GnfpPublishedFeed(version: '0.1.7');
+    final stay = GnfpUpdateCheck.evaluate(
+      localVersion: '0.1.6',
+      feed: feed,
+      platform: 'macos',
+    );
+    expect(stay.updateAvailable, isTrue);
+    final current = GnfpUpdateCheck.evaluate(
+      localVersion: '0.1.7',
+      feed: feed,
+      platform: 'macos',
+    );
+    expect(current.updateAvailable, isFalse);
+  });
+
   test('same local version does not claim an update', () {
     const feed = GnfpPublishedFeed(version: '0.1.11');
     final info = GnfpUpdateCheck.evaluate(

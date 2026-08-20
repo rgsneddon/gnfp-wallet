@@ -117,7 +117,7 @@ String ownerFacingParty(String address, String party) {
 }
 
 const ownerLedgerSpreadsheetHeader =
-    'Id,Kind,From,To,Amount,Asset,Memo';
+    'Date,Id,Kind,From,To,Amount,Asset,Memo';
 
 String csvCell(Object? value) {
   final text = value?.toString() ?? '';
@@ -130,16 +130,60 @@ String csvCell(Object? value) {
   return text;
 }
 
-/// Spreadsheet (CSV) of the same rows Explorer shows — owner-facing kind
-/// and `your address`, newest first. Opens in Excel / Numbers / Sheets.
+String ownerLedgerRowDate(OwnerLedgerRow row) {
+  final ms = row.foundAt;
+  if (ms == null || ms <= 0) {
+    return row.height != null ? 'height ${row.height}' : '';
+  }
+  return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).toIso8601String();
+}
+
+int ownerLedgerRecency(OwnerLedgerRow row) {
+  if (row.foundAt != null && row.foundAt! > 0) return row.foundAt!;
+  if (row.height != null) return row.height! * 1000;
+  return 0;
+}
+
+/// Newest first (foundAt / height). Stable id tie-break.
+List<OwnerLedgerRow> ownerLedgerNewestFirst(Iterable<OwnerLedgerRow> rows) {
+  final out = rows.toList();
+  out.sort((a, b) {
+    final c = ownerLedgerRecency(b).compareTo(ownerLedgerRecency(a));
+    if (c != 0) return c;
+    return b.id.compareTo(a.id);
+  });
+  return out;
+}
+
+String _xlsCell(Object? value) {
+  final text = (value?.toString() ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+  return '<Cell><Data ss:Type="String">$text</Data></Cell>';
+}
+
+/// Excel SpreadsheetML saved as `.xls` — same rows Explorer shows.
 String ownerLedgerSpreadsheet({
   required String address,
   required Iterable<OwnerLedgerRow> rows,
 }) {
-  final buf = StringBuffer()..writeln(ownerLedgerSpreadsheetHeader);
-  for (final r in rows) {
+  final ordered = ownerLedgerNewestFirst(rows);
+  final buf = StringBuffer()
+    ..writeln('<?xml version="1.0"?>')
+    ..writeln('<?mso-application progid="Excel.Sheet"?>')
+    ..writeln(
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" '
+      'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
+    )
+    ..writeln('<Worksheet ss:Name="GNFP"><Table>')
+    ..writeln(
+      '<Row>${['Date', 'Id', 'Kind', 'From', 'To', 'Amount', 'Asset', 'Memo'].map(_xlsCell).join()}</Row>',
+    );
+  for (final r in ordered) {
     buf.writeln(
-      [
+      '<Row>${[
+        ownerLedgerRowDate(r),
         r.id,
         ownerFacingKind(address: address, from: r.from, to: r.to, kind: r.kind),
         ownerFacingParty(address, r.from),
@@ -147,9 +191,10 @@ String ownerLedgerSpreadsheet({
         r.amount,
         r.asset,
         r.memo,
-      ].map(csvCell).join(','),
+      ].map(_xlsCell).join()}</Row>',
     );
   }
+  buf.writeln('</Table></Worksheet></Workbook>');
   return buf.toString();
 }
 
@@ -240,7 +285,10 @@ List<OwnerLedgerRow> ownerLedgerRows({
     if (raw is GnfpTx) {
       if (!_involves(addr, from: raw.from, to: raw.to)) continue;
       if (raw.amount <= 0) continue;
-      out.add(OwnerLedgerRow.fromTx(raw));
+      out.add(OwnerLedgerRow.fromTx(raw, extra: {
+        if (raw.height != null) 'height': raw.height,
+        if (raw.foundAt != null) 'foundAt': raw.foundAt,
+      }));
       continue;
     }
     if (raw is Map) {

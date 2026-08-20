@@ -12,6 +12,7 @@ import 'package:crypto/crypto.dart';
 
 import 'gnfp_owner_ledger.dart';
 import 'gnfp_pool_client.dart';
+import 'gnfp_seed.dart';
 
 const gnfpTicker = 'GNFP';
 const gnfpAddressPrefix = 'gnfp1';
@@ -41,6 +42,8 @@ class GnfpTx {
     required this.amount,
     required this.kind,
     this.memo = '',
+    this.height,
+    this.foundAt,
   });
 
   final String id;
@@ -49,6 +52,8 @@ class GnfpTx {
   final double amount;
   final String kind;
   final String memo;
+  final int? height;
+  final int? foundAt;
 
   factory GnfpTx.fromJson(Map<String, dynamic> json) {
     return GnfpTx(
@@ -58,6 +63,8 @@ class GnfpTx {
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
       kind: json['kind']?.toString() ?? '',
       memo: json['memo']?.toString() ?? '',
+      height: (json['height'] as num?)?.toInt(),
+      foundAt: (json['foundAt'] as num?)?.toInt(),
     );
   }
 }
@@ -96,6 +103,8 @@ class GnfpLedger {
           amount: row.amount,
           kind: row.kind,
           memo: row.memo,
+          height: row.height,
+          foundAt: row.foundAt,
         ));
       }
       return ownerRows(address);
@@ -324,6 +333,8 @@ class GnfpLedger {
                   'amount': t.amount,
                   'kind': t.kind,
                   'memo': t.memo,
+                  if (t.height != null) 'height': t.height,
+                  if (t.foundAt != null) 'foundAt': t.foundAt,
                 })
             .toList(),
       };
@@ -334,24 +345,48 @@ const gnfpBackupWords = [
   'beam', 'hash', 'grey', 'night', 'circuit', 'pulse', 'ward', 'vote',
 ];
 
-/// Invertible phrase: one word per hex nibble of the gnfp1 payload.
-String backupPhraseFor(GnfpAddress address, {int words = 40}) {
-  final hex = address.value.substring(gnfpAddressPrefix.length);
-  return hex.split('').map((c) {
-    final n = int.parse(c, radix: 16);
-    return gnfpBackupWords[n];
-  }).join(' ');
+/// Twelve English BIP-39 words for this wallet. [seed] keeps the phrase
+/// stable for the session that created [address].
+String backupPhraseFor(GnfpAddress address, {String? seed, int words = 12}) {
+  if (words == 40) {
+    final hex = address.value.substring(gnfpAddressPrefix.length);
+    return hex.split('').map((c) {
+      final n = int.parse(c, radix: 16);
+      return gnfpBackupWords[n];
+    }).join(' ');
+  }
+  return encodeBip39(phraseEntropy(addressValue: address.value, seed: seed));
 }
 
-GnfpAddress restoreFromPhrase(String phrase, [GnfpLedger? ledger]) {
-  final parts = phrase.trim().toLowerCase().split(RegExp(r'\s+'));
-  final hex = parts.map((w) {
-    final i = gnfpBackupWords.indexOf(w);
-    if (i < 0) throw ArgumentError('bad phrase word');
-    return i.toRadixString(16);
-  }).join();
-  final addr = GnfpAddress('$gnfpAddressPrefix$hex');
-  if (!addr.isValid) throw ArgumentError('phrase is not a GNFP address');
+/// Restore from 12 English words (or a legacy 40-word nibble phrase).
+/// Matching the current displayed phrase keeps [current]; any other phrase
+/// creates a new gnfp1 (zero balance until the book has funds).
+GnfpAddress restoreFromPhrase(
+  String phrase, [
+  GnfpLedger? ledger,
+  GnfpAddress? current,
+  String? currentSeed,
+]) {
+  final parts = gnfpPhraseWords(phrase);
+  if (current != null &&
+      gnfpPhraseEquals(phrase, backupPhraseFor(current, seed: currentSeed))) {
+    ledger?.adopt(current);
+    return current;
+  }
+  if (parts.length > 12) {
+    final hex = parts.map((w) {
+      final i = gnfpBackupWords.indexOf(w);
+      if (i < 0) throw ArgumentError('bad phrase word');
+      return i.toRadixString(16);
+    }).join();
+    final addr = GnfpAddress('$gnfpAddressPrefix$hex');
+    if (!addr.isValid) throw ArgumentError('phrase is not a GNFP address');
+    ledger?.adopt(addr);
+    return addr;
+  }
+  final entropy = entropyFromAnyPhrase(parts);
+  final book = ledger ?? GnfpLedger();
+  final addr = book.createAddress(seed: hexEncodeBytes(entropy));
   ledger?.adopt(addr);
   return addr;
 }

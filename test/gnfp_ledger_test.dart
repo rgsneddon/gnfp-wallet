@@ -201,8 +201,8 @@ void main() {
   test('backup phrase restores the same gnfp1 address', () {
     final ledger = liveLedger();
     final a = ledger.createAddress(seed: 'alice-backup');
-    final phrase = backupPhraseFor(a);
-    final restored = restoreFromPhrase(phrase, ledger);
+    final phrase = backupPhraseFor(a, seed: 'alice-backup');
+    final restored = restoreFromPhrase(phrase, ledger, a, 'alice-backup');
     expect(restored.value, a.value);
     expect(restored.isValid, isTrue);
   });
@@ -314,8 +314,8 @@ Future<void> writeScratchEvidence(GnfpLedger ledger) async {
   final b = ledger.createAddress(seed: 'bob-evidence');
   final seeded = await seedMinerBook(ledger, a, 10);
   await ledger.send(from: a, to: b, amount: seeded.amount / 2);
-  final phrase = backupPhraseFor(a);
-  final restored = restoreFromPhrase(phrase, ledger);
+  final phrase = backupPhraseFor(a, seed: 'alice-evidence');
+  final restored = restoreFromPhrase(phrase, ledger, a, 'alice-evidence');
   final payload = const JsonEncoder.withIndent('  ').convert({
     ...ledger.snapshot(),
     'via': ledger.pool.baseUrl,

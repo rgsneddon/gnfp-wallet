@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../copyable_address.dart';
 import '../gnfp_ledger.dart';
 import '../gnfp_qr.dart';
+import '../gnfp_social.dart';
 import '../gnfp_theme.dart';
 
 const gnfpCreditAdded = 'mined coins added to your balance';
@@ -21,12 +23,14 @@ class WalletScreen extends StatefulWidget {
     required this.address,
     required this.version,
     this.onSpendable,
+    this.openExternal,
   });
 
   final GnfpLedger ledger;
   final GnfpAddress address;
   final String version;
   final void Function(GnfpAddress address, double amount)? onSpendable;
+  final Future<void> Function(Uri url)? openExternal;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -36,7 +40,6 @@ class _WalletScreenState extends State<WalletScreen> {
   final toCtrl = TextEditingController();
   final amtCtrl = TextEditingController();
   String status = '';
-  String creditStatus = '';
   double? networkBal;
   int? networkTip;
   Timer? _poll;
@@ -85,18 +88,18 @@ class _WalletScreenState extends State<WalletScreen> {
     } catch (_) {}
   }
 
-  Future<void> _creditPending() async {
-    try {
-      final tx = await widget.ledger.creditFromMiner(to: widget.address);
-      if (!mounted) return;
-      setState(() {
-        creditStatus = creditWalletPhrase(added: tx.amount > 0);
-      });
-      await _pullNetwork();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => creditStatus = creditWalletPhrase(added: false));
+  Future<void> _openSocial(GnfpSocialChannel channel) async {
+    final uri = Uri.parse(channel.url);
+    final open = widget.openExternal;
+    if (open != null) {
+      await open(uri);
+      return;
     }
+    await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+      webOnlyWindowName: '_blank',
+    );
   }
 
   Future<void> _send() async {
@@ -356,22 +359,37 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   ],
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    key: const Key('gnfp-credit-miner'),
-                    onPressed: _creditPending,
-                    child: const Text(
-                      'Credit wallet with pending GNFP',
-                      style: TextStyle(color: GnfpTheme.neonCyan, fontSize: 12),
-                    ),
-                  ),
-                ),
                 if (status.isNotEmpty) Text(status, key: const Key('gnfp-wallet-status')),
-                Text(creditStatus, key: const Key('gnfp-credit-status')),
               ],
             ),
           ),
+          const SizedBox(height: 20),
+          const Text(
+            gnfpSocialHeading,
+            key: Key('gnfp-social-heading'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: GnfpTheme.cream,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final channel in gnfpSocialChannels)
+            Center(
+              child: TextButton(
+                key: Key('gnfp-social-${channel.title}'),
+                onPressed: () => _openSocial(channel),
+                child: Text(
+                  channel.title,
+                  style: const TextStyle(
+                    color: GnfpTheme.neonCyan,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
         ],
         ),
         ),

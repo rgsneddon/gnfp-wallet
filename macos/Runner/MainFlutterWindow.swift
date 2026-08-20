@@ -16,6 +16,9 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    let ver = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.7"
+    self.title = "$GNFP core wallet v\(ver)"
+
     super.awakeFromNib()
   }
 }

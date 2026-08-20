@@ -2,8 +2,22 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <string>
+
 #include "flutter_window.h"
 #include "utils.h"
+
+#ifndef FLUTTER_VERSION
+#define FLUTTER_VERSION "0.1.7"
+#endif
+
+static std::wstring GnfpCoreWalletTitle() {
+  std::wstring title = L"$GNFP core wallet v";
+  for (const char* p = FLUTTER_VERSION; *p != '\0'; ++p) {
+    title.push_back(static_cast<wchar_t>(*p));
+  }
+  return title;
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -35,7 +49,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   if (y < work.top) y = work.top;
   Win32Window::Point origin(x, y);
   Win32Window::Size size(width, height);
-  if (!window.Create(L"GNFP Wallet", origin, size)) {
+  const std::wstring title = GnfpCoreWalletTitle();
+  if (!window.Create(title.c_str(), origin, size)) {
     return EXIT_FAILURE;
   }
   window.Show();
