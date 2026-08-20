@@ -78,8 +78,8 @@ void main() {
     expect(File('linux/runner/my_application.cc').readAsStringSync(),
         contains(needle));
     expect(File('linux/gnfp_wallet.desktop').readAsStringSync(), contains(needle));
-    expect(File('android/app/build.gradle.kts').readAsStringSync(),
-        contains(r'\$GNFP core wallet v'));
+    expect(File('android/app/src/main/res/values/strings.xml').readAsStringSync(),
+        contains(r'$GNFP core wallet v'));
     expect(File('ios/Runner/Info.plist').readAsStringSync(), contains(needle));
     expect(File('macos/Runner/Info.plist').readAsStringSync(), contains(needle));
   });

@@ -29,7 +29,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        resValue("string", "gnfp_app_label", "\$GNFP core wallet v${flutter.versionName}")
     }
 
     signingConfigs {
