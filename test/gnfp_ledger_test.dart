@@ -27,7 +27,7 @@ Future<GnfpTx> seedMinerBook(
   var nonce = '0000000000000001';
   for (var i = 1; i < 200000; i += 1) {
     final tryNonce = nextCpuNonce(i);
-    if (hashMeetsJob({'input': preWork, 'difficulty': 1}, tryNonce)) {
+    if (hashMeetsJob({'input': preWork, 'difficulty': 14}, tryNonce)) {
       nonce = tryNonce;
       break;
     }

@@ -21,7 +21,7 @@ void main() {
     expect(cmd.user, '$addr.worker');
     expect(cmd.worker, 'worker');
     expect(cmd.command, contains('--worker worker'));
-    expect(gnfpMineVersion, '1.0.2');
+    expect(gnfpMineVersion, '1.0.3');
     expect(gnfpMineClient, 'GNFPHash');
     expect(gnfpMineAlgorithm, 'GNFPHash');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);

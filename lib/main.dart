@@ -133,6 +133,9 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         ledger: widget.ledger,
         address: address,
         version: stampedVersion,
+        onSpendable: (a, n) {
+          session.rememberSpendable(a, n);
+        },
       ),
       ExplorerScreen(ledger: widget.ledger, address: address),
       BackupScreen(

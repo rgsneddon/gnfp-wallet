@@ -148,12 +148,25 @@ class GnfpLedger {
     final previous = balance(address);
     try {
       final live = await pool.balance(address.value);
-      if (live > previous) {
+      if (live > 0) {
         _balances[address.value] = live;
-      } else if (live > 0) {
-        _balances[address.value] = live;
+        return balance(address);
       }
-      return balance(address);
+      try {
+        final hist = await pool.history(address.value);
+        final rec = reconstructSpendable(
+          address: address.value,
+          shear: hist['shear']?.toString() ?? '',
+          txs: (hist['txs'] as List?) ?? const [],
+        );
+        if (rec > 0) {
+          _balances[address.value] = rec;
+          return rec;
+        }
+      } catch (_) {
+        /* book fetch already returned 0 — keep previous */
+      }
+      return previous;
     } catch (_) {
       return previous;
     }

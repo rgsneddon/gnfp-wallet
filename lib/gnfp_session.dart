@@ -46,12 +46,32 @@ class GnfpSession {
     return '$trimmed/Library/Application Support/GNFP/session.json';
   }
 
+  static const androidPackage = 'online.restoreprivacy.gnfp_wallet';
+
+  /// Android app-private files dir — cwd / HOME is not durable across launches.
+  static String androidDefaultStorePath({String? packageName}) {
+    final pkg = (packageName ?? androidPackage).trim();
+    return '/data/user/0/$pkg/files/GNFP/session.json';
+  }
+
+  static String iosDefaultStorePath(String home) {
+    final h = home.isEmpty ? '.' : home;
+    final trimmed = h.endsWith('/') ? h.substring(0, h.length - 1) : h;
+    return '$trimmed/Library/Application Support/GNFP/session.json';
+  }
+
   static File defaultStore() {
     if (Platform.isWindows) {
       final root = Platform.environment['APPDATA'] ?? '.';
       return File('$root${Platform.pathSeparator}GNFP${Platform.pathSeparator}session.json');
     }
+    if (Platform.isAndroid) {
+      return File(androidDefaultStorePath());
+    }
     final home = Platform.environment['HOME'] ?? '.';
+    if (Platform.isIOS) {
+      return File(iosDefaultStorePath(home));
+    }
     if (Platform.isMacOS) {
       return File(macDefaultStorePath(home));
     }
@@ -94,6 +114,12 @@ class GnfpSession {
       add('$local${Platform.pathSeparator}GNFP${Platform.pathSeparator}session.json');
       add('$local${Platform.pathSeparator}gnfp${Platform.pathSeparator}session.json');
     }
+    const pkg = androidPackage;
+    add('/data/user/0/$pkg/files/GNFP/session.json');
+    add('/data/user/0/$pkg/files/.gnfp/session.json');
+    add('/data/data/$pkg/files/GNFP/session.json');
+    add('/data/data/$pkg/app_flutter/session.json');
+    add('/data/data/$pkg/files/.gnfp/session.json');
     return out;
   }
 
@@ -219,6 +245,7 @@ class GnfpSession {
       'address': addr.value,
       'amount': amount,
     };
+    persist();
   }
 
   Future<void> persist() async {

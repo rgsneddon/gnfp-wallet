@@ -153,6 +153,81 @@ String ownerLedgerSpreadsheet({
   return buf.toString();
 }
 
+/// Two ownership checks: gnfp1 match plus shear-obfuscation at that tx height.
+bool ownsLedgerTx({
+  required String address,
+  required String shear,
+  required dynamic tx,
+}) {
+  final addr = address.trim();
+  if (addr.isEmpty || tx == null) return false;
+  String from;
+  String to;
+  String storedFrom;
+  String storedTo;
+  if (tx is GnfpTx) {
+    from = tx.from;
+    to = tx.to;
+    storedFrom = '';
+    storedTo = '';
+  } else if (tx is Map) {
+    from = tx['from']?.toString() ?? '';
+    to = tx['to']?.toString() ?? '';
+    storedFrom = tx['shearFrom']?.toString() ?? '';
+    storedTo = tx['shearTo']?.toString() ?? '';
+  } else {
+    return false;
+  }
+  final involved = from == addr || to == addr;
+  if (!involved) return false;
+  final want = shear.trim();
+  if (want.isEmpty) return true;
+  final stored = from == addr ? storedFrom : storedTo;
+  return stored == want || storedFrom == want || storedTo == want;
+}
+
+/// Honest spendable from height-ordered txs. Live 0 is not applied here.
+double reconstructSpendable({
+  required String address,
+  required String shear,
+  required Iterable<dynamic> txs,
+}) {
+  final addr = address.trim();
+  if (addr.isEmpty) return 0;
+  final rows = txs.toList();
+  rows.sort((a, b) {
+    int heightOf(dynamic t) {
+      if (t is Map) return (t['height'] as num?)?.toInt() ?? 0;
+      return 0;
+    }
+
+    final d = heightOf(a).compareTo(heightOf(b));
+    if (d != 0) return d;
+    String idOf(dynamic t) {
+      if (t is GnfpTx) return t.id;
+      if (t is Map) return t['id']?.toString() ?? '';
+      return '';
+    }
+
+    return idOf(a).compareTo(idOf(b));
+  });
+  var bal = 0.0;
+  for (final tx in rows) {
+    if (!ownsLedgerTx(address: addr, shear: shear, tx: tx)) continue;
+    if (tx is GnfpTx) {
+      if (tx.to == addr) bal += tx.amount;
+      if (tx.from == addr) bal -= tx.amount;
+      continue;
+    }
+    if (tx is Map) {
+      final amt = (tx['amount'] as num?)?.toDouble() ?? 0;
+      if ((tx['to']?.toString() ?? '') == addr) bal += amt;
+      if ((tx['from']?.toString() ?? '') == addr) bal -= amt;
+    }
+  }
+  return bal;
+}
+
 /// Full plaintext ledger for [address] only. Never shear-tags or Cfx-hidden.
 List<OwnerLedgerRow> ownerLedgerRows({
   required String address,

@@ -20,11 +20,13 @@ class WalletScreen extends StatefulWidget {
     required this.ledger,
     required this.address,
     required this.version,
+    this.onSpendable,
   });
 
   final GnfpLedger ledger;
   final GnfpAddress address;
   final String version;
+  final void Function(GnfpAddress address, double amount)? onSpendable;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -68,6 +70,7 @@ class _WalletScreenState extends State<WalletScreen> {
           _trustZero = false;
           networkBal = n;
           widget.ledger.rememberSpendable(widget.address, n);
+          widget.onSpendable?.call(widget.address, n);
         } else if (_trustZero) {
           networkBal = n;
         } else {

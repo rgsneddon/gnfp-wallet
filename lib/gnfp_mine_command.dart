@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'gnfp_ledger.dart';
 
-const gnfpMineVersion = '1.0.2';
+const gnfpMineVersion = '1.0.3';
 const gnfpMineClient = 'GNFPHash';
 const gnfpMineAlgorithm = 'GNFPHash';
 const gnfpMineDefaultPool = gnfpStratum;
@@ -16,7 +16,7 @@ const gnfpMineMaxWorkerLen = 24;
 const gnfpMineTlsRequiredMsg =
     'pool is TLS. public book/fronts need TLS — drop --notls';
 const gnfpMineOldMinerHint =
-    'pool refused this client — use GNFPHash 1.0.2+ against gnfp-node 1.0.8+';
+    'pool refused this client — use GNFPHash 1.0.3+ against gnfp-node 1.2.3+';
 final gnfpWorkerRe = RegExp(r'^[A-Za-z0-9_-]{1,24}$');
 
 /// Empty → default `worker`. 1–24 letters/digits/_/-. Null if illegal.
