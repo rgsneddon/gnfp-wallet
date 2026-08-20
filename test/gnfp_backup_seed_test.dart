@@ -14,6 +14,26 @@ void main() {
     expect(restoreFromPhrase(phrase, ledger, addr, seed).value, addr.value);
   });
 
+  test('restoreFromPhrase with no current wallet returns the original gnfp1', () {
+    final created = GnfpLedger();
+    const seed = '00112233445566778899aabbccddeeff';
+    final addr = created.createAddress(seed: seed);
+    final phrase = backupPhraseFor(addr, seed: seed);
+    expect(gnfpPhraseWords(phrase), hasLength(12));
+    final restored = restoreFromPhrase(phrase);
+    expect(restored.value, addr.value);
+    expect(restoreSeedHexFromPhrase(phrase), seed);
+  });
+
+  test('production-style random seed phrase round-trips on a fresh ledger', () {
+    final sessionLedger = GnfpLedger();
+    final seed = List.generate(16, (i) => i).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final addr = sessionLedger.createAddress(seed: seed);
+    final phrase = backupPhraseFor(addr, seed: seed);
+    final restored = restoreFromPhrase(phrase, GnfpLedger());
+    expect(restored.value, addr.value);
+  });
+
   test('wrong 12 words mint a different empty gnfp1', () {
     final ledger = GnfpLedger();
     const seed = 'keep-me';
@@ -73,5 +93,44 @@ void main() {
     await tester.tap(find.byKey(const Key('gnfp-restore')));
     await tester.pump();
     expect(find.textContaining('restored ${addr.value}'), findsOneWidget);
+  });
+
+  testWidgets('restore of another 12-word phrase reports that seed', (tester) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final ledger = GnfpLedger();
+    const seed = '00112233445566778899aabbccddeeff';
+    final addr = ledger.createAddress(seed: seed);
+    GnfpAddress? gotAddr;
+    String? gotSeed;
+    const wrong =
+        'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BackupScreen(
+            address: addr,
+            ledger: ledger,
+            seed: seed,
+            onRestored: (a, s) {
+              gotAddr = a;
+              gotSeed = s;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final words = gnfpPhraseWords(wrong);
+    for (var i = 0; i < 12; i++) {
+      await tester.enterText(find.byKey(Key('gnfp-seed-box-$i')), words[i]);
+    }
+    await tester.tap(find.byKey(const Key('gnfp-restore')));
+    await tester.pump();
+    expect(gotAddr!.value, isNot(addr.value));
+    expect(gotSeed, restoreSeedHexFromPhrase(wrong));
+    expect(restoreFromPhrase(wrong).value, gotAddr!.value);
+    expect(ledger.balance(gotAddr!), 0);
   });
 }

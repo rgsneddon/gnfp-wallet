@@ -180,4 +180,54 @@ void main() {
     final oldY = tester.getTopLeft(find.byKey(const Key('gnfp-owner-kind-old-sx'))).dy;
     expect(liveY, lessThan(oldY));
   });
+
+  testWidgets('shipped explorer save-path picker writes .xls to the chosen dest', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    const peer = 'gnfp1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    final owner = GnfpLedger().createAddress(seed: 'picker-hist');
+    final ledger = GnfpLedger(
+      pool: BookHistoryClient([
+        {
+          'id': 'pick-rx',
+          'from': peer,
+          'to': owner.value,
+          'amount': 3,
+          'kind': 'send',
+          'foundAt': 4000,
+        },
+      ]),
+    );
+    ledger.adopt(owner);
+    final dest = File('${Directory.systemTemp.path}/gnfp-picker-export.xls');
+    if (dest.existsSync()) dest.deleteSync();
+    addTearDown(() {
+      if (dest.existsSync()) dest.deleteSync();
+    });
+    String? suggested;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExplorerScreen(
+            ledger: ledger,
+            address: owner,
+            pickExportFile: ({required suggestedName, required bytes}) async {
+              suggested = suggestedName;
+              return dest;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-owner-export')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('gnfp-owner-export')));
+    await tester.pump();
+    expect(suggested, endsWith('.xls'));
+    expect(dest.existsSync(), isTrue);
+    expect(dest.path.endsWith('.xls'), isTrue);
+    expect(dest.readAsStringSync(), contains('Excel.Sheet'));
+  });
 }

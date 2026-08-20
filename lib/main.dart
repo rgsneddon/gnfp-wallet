@@ -34,6 +34,7 @@ class GnfpWalletApp extends StatefulWidget {
     this.miner,
     this.processors,
     this.launchExecutable,
+    this.pickExportFile,
   });
 
   final GnfpLedger ledger;
@@ -45,6 +46,10 @@ class GnfpWalletApp extends StatefulWidget {
   final InWalletMiner? miner;
   final int? processors;
   final String? launchExecutable;
+  final Future<File?> Function({
+    required String suggestedName,
+    required List<int> bytes,
+  })? pickExportFile;
 
   @override
   State<GnfpWalletApp> createState() => _GnfpWalletAppState();
@@ -137,13 +142,17 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
           session.rememberSpendable(a, n);
         },
       ),
-      ExplorerScreen(ledger: widget.ledger, address: address),
+      ExplorerScreen(
+        ledger: widget.ledger,
+        address: address,
+        pickExportFile: widget.pickExportFile ?? pickOwnerLedgerExportFile,
+      ),
       BackupScreen(
         address: address,
         ledger: widget.ledger,
         seed: session.seed,
-        onRestored: (a) async {
-          await session.rememberAddress(widget.ledger, a);
+        onRestored: (a, seed) async {
+          await session.rememberAddress(widget.ledger, a, seed: seed);
           setState(() => address = a);
         },
       ),

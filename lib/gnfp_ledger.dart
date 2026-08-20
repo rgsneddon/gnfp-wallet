@@ -345,8 +345,9 @@ const gnfpBackupWords = [
   'beam', 'hash', 'grey', 'night', 'circuit', 'pulse', 'ward', 'vote',
 ];
 
-/// Twelve English BIP-39 words for this wallet. [seed] keeps the phrase
-/// stable for the session that created [address].
+/// Twelve English BIP-39 words for this wallet. Production seeds are 16
+/// random bytes (32 hex chars); the phrase is those bytes, so restore
+/// without the current wallet still yields the same gnfp1.
 String backupPhraseFor(GnfpAddress address, {String? seed, int words = 12}) {
   if (words == 40) {
     final hex = address.value.substring(gnfpAddressPrefix.length);
@@ -355,12 +356,20 @@ String backupPhraseFor(GnfpAddress address, {String? seed, int words = 12}) {
       return gnfpBackupWords[n];
     }).join(' ');
   }
+  final material = (seed != null && seed.isNotEmpty) ? seed : address.value;
+  return encodeBip39(seedToEntropy(material));
+}
+
+/// 0.1.6 displayed words as hash(seed|address). Keep matching those on
+/// restore so an already-open wallet does not rotate.
+String legacyHashedBackupPhrase(GnfpAddress address, {String? seed}) {
   return encodeBip39(phraseEntropy(addressValue: address.value, seed: seed));
 }
 
 /// Restore from 12 English words (or a legacy 40-word nibble phrase).
-/// Matching the current displayed phrase keeps [current]; any other phrase
-/// creates a new gnfp1 (zero balance until the book has funds).
+/// Phrase → gnfp1 is invertible with no current wallet. Matching the
+/// current displayed (or 0.1.6 hashed) phrase keeps [current]. Any other
+/// 12 words mint a new gnfp1 (zero balance until the book has funds).
 GnfpAddress restoreFromPhrase(
   String phrase, [
   GnfpLedger? ledger,
@@ -368,10 +377,13 @@ GnfpAddress restoreFromPhrase(
   String? currentSeed,
 ]) {
   final parts = gnfpPhraseWords(phrase);
-  if (current != null &&
-      gnfpPhraseEquals(phrase, backupPhraseFor(current, seed: currentSeed))) {
-    ledger?.adopt(current);
-    return current;
+  if (current != null) {
+    final shown = backupPhraseFor(current, seed: currentSeed);
+    final hashed = legacyHashedBackupPhrase(current, seed: currentSeed);
+    if (gnfpPhraseEquals(phrase, shown) || gnfpPhraseEquals(phrase, hashed)) {
+      ledger?.adopt(current);
+      return current;
+    }
   }
   if (parts.length > 12) {
     final hex = parts.map((w) {

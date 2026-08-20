@@ -193,9 +193,13 @@ class GnfpSession {
     return const [];
   }
 
-  Future<GnfpAddress> rememberAddress(GnfpLedger ledger, GnfpAddress next) async {
+  Future<GnfpAddress> rememberAddress(
+    GnfpLedger ledger,
+    GnfpAddress next, {
+    String? seed,
+  }) async {
     address = next;
-    seed ??= next.value;
+    this.seed = (seed != null && seed.isNotEmpty) ? seed : next.value;
     ledger.adopt(next);
     await persist();
     return next;

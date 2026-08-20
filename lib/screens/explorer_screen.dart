@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../gnfp_ledger.dart';
@@ -29,6 +32,26 @@ File defaultOwnerLedgerExportFile({DateTime? now, String? home}) {
   return File(name);
 }
 
+/// Device save-path picker. Writes SpreadsheetML `.xls`. Cancel returns null.
+Future<File?> pickOwnerLedgerExportFile({
+  required String suggestedName,
+  required List<int> bytes,
+}) async {
+  final uri = await FilePicker.saveFile(
+    fileName: suggestedName,
+    bytes: Uint8List.fromList(bytes),
+    mimeType: 'application/vnd.ms-excel',
+    dialogTitle: 'Save spreadsheet',
+    type: FileType.custom,
+    allowedExtensions: const ['xls'],
+  );
+  if (uri == null) return null;
+  if (uri.scheme == 'file' || uri.scheme.isEmpty) {
+    return File.fromUri(uri);
+  }
+  return File(uri.path);
+}
+
 class ExplorerScreen extends StatefulWidget {
   const ExplorerScreen({
     super.key,
@@ -41,7 +64,10 @@ class ExplorerScreen extends StatefulWidget {
   final GnfpLedger ledger;
   final GnfpAddress address;
   final File? exportFile;
-  final Future<File?> Function({required String suggestedName})? pickExportFile;
+  final Future<File?> Function({
+    required String suggestedName,
+    required List<int> bytes,
+  })? pickExportFile;
 
   @override
   State<ExplorerScreen> createState() => _ExplorerScreenState();
@@ -112,8 +138,16 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
     final suggested = defaultOwnerLedgerExportFile().uri.pathSegments.isEmpty
         ? 'gnfp-wallet-ledger.xls'
         : defaultOwnerLedgerExportFile().uri.pathSegments.last;
-    final picked = await widget.pickExportFile?.call(suggestedName: suggested);
-    var dest = widget.exportFile ?? picked ?? defaultOwnerLedgerExportFile();
+    final xlsBytes = utf8.encode(xls);
+    File dest;
+    if (widget.exportFile != null) {
+      dest = widget.exportFile!;
+    } else {
+      final picker = widget.pickExportFile ?? pickOwnerLedgerExportFile;
+      final picked = await picker(suggestedName: suggested, bytes: xlsBytes);
+      if (picked == null) return;
+      dest = picked;
+    }
     if (!dest.path.toLowerCase().endsWith('.xls')) {
       dest = File('${dest.path}.xls');
     }

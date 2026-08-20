@@ -12,6 +12,7 @@ import 'package:gnfp_wallet/gnfp_version.dart';
 import 'package:gnfp_wallet/gnfp_theme.dart';
 import 'package:gnfp_wallet/gnfp_update.dart';
 import 'package:gnfp_wallet/main.dart';
+import 'package:gnfp_wallet/screens/explorer_screen.dart';
 import 'package:gnfp_wallet/screens/wallet_screen.dart';
 
 import 'pool_harness.dart';
@@ -42,6 +43,12 @@ void main() {
     expect(find.byKey(const Key('gnfp-logo')), findsOneWidget);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.title, r'$GNFP core wallet v0.0.5');
+    await tester.tap(find.byIcon(Icons.explore));
+    await tester.pump();
+    final explorer = tester.widget<ExplorerScreen>(find.byType(ExplorerScreen));
+    expect(explorer.pickExportFile, isNotNull);
+    await tester.tap(find.byIcon(Icons.account_balance_wallet));
+    await tester.pump();
     expect(app.theme!.colorScheme.primary, GnfpTheme.neonCyan);
     expect(app.theme!.scaffoldBackgroundColor, GnfpTheme.black);
     expect(find.textContaining('GNFP'), findsWidgets);

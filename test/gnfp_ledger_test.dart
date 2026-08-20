@@ -207,6 +207,15 @@ void main() {
     expect(restored.isValid, isTrue);
   });
 
+  test('backup phrase restores the same gnfp1 with no current wallet', () {
+    const seed = '00112233445566778899aabbccddeeff';
+    final a = liveLedger().createAddress(seed: seed);
+    final phrase = backupPhraseFor(a, seed: seed);
+    final restored = restoreFromPhrase(phrase);
+    expect(restored.value, a.value);
+    expect(restored.isValid, isTrue);
+  });
+
   test('Evolve surfaces exist and purple is not primary', () {
     expect(
       gnfpEvolveSurfaces,

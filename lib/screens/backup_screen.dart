@@ -18,7 +18,7 @@ class BackupScreen extends StatefulWidget {
   final GnfpAddress address;
   final GnfpLedger ledger;
   final String? seed;
-  final ValueChanged<GnfpAddress>? onRestored;
+  final void Function(GnfpAddress address, String seed)? onRestored;
   final ClipboardDelegate? clipboard;
 
   @override
@@ -92,13 +92,18 @@ class _BackupScreenState extends State<BackupScreen> {
   }
 
   void _restore() {
+    final phrase = _typedPhrase();
     final addr = restoreFromPhrase(
-      _typedPhrase(),
+      phrase,
       widget.ledger,
       widget.address,
       widget.seed,
     );
-    widget.onRestored?.call(addr);
+    final restoredSeed = restoreSeedHexFromPhrase(phrase);
+    widget.onRestored?.call(
+      addr,
+      restoredSeed.isNotEmpty ? restoredSeed : addr.value,
+    );
     setState(() => status = 'restored ${addr.value}');
   }
 

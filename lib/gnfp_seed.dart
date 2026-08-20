@@ -35,6 +35,31 @@ String hexEncodeBytes(List<int> bytes) {
   return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }
 
+final _hex32 = RegExp(r'^[0-9a-f]{32}$');
+
+/// 16-byte entropy for a session seed. A 32-char hex seed is itself the
+/// entropy (production wallets). Any other string hashes to 16 bytes.
+Uint8List seedToEntropy(String seed) {
+  final s = seed.trim().toLowerCase();
+  if (_hex32.hasMatch(s)) {
+    final out = Uint8List(16);
+    for (var i = 0; i < 16; i++) {
+      out[i] = int.parse(s.substring(i * 2, i * 2 + 2), radix: 16);
+    }
+    return out;
+  }
+  return Uint8List.fromList(
+    sha256.convert(utf8.encode('gnfp-bip39-seed:$seed')).bytes.sublist(0, 16),
+  );
+}
+
+/// Hex seed `createAddress` must use so phrase → gnfp1 is invertible.
+String restoreSeedHexFromPhrase(String phrase) {
+  final parts = gnfpPhraseWords(phrase);
+  if (parts.length != 12) return '';
+  return hexEncodeBytes(entropyFromAnyPhrase(parts));
+}
+
 Uint8List phraseEntropy({required String addressValue, String? seed}) {
   final material = '${seed ?? ''}|$addressValue';
   final digest = sha256.convert(utf8.encode('gnfp-bip39:$material')).bytes;

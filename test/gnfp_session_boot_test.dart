@@ -125,6 +125,33 @@ void main() {
     );
   });
 
+  test('rememberAddress overwrites session seed with the restored seed', () async {
+    final dir = await Directory.systemTemp.createTemp('gnfp-restore-seed');
+    final store = File('${dir.path}/session.json');
+    const oldSeed = '00112233445566778899aabbccddeeff';
+    final ledger = GnfpLedger();
+    final first = ledger.createAddress(seed: oldSeed);
+    store.writeAsStringSync(
+      '{"seed":"$oldSeed","address":"${first.value}","schema":2}',
+    );
+    final session = GnfpSession(store: store);
+    expect((await session.load(ledger))!.value, first.value);
+    expect(session.seed, oldSeed);
+    const newSeed = 'ffeeddccbbaa99887766554433221100';
+    final restored = ledger.createAddress(seed: newSeed);
+    await session.rememberAddress(ledger, restored, seed: newSeed);
+    expect(session.seed, newSeed);
+    expect(session.address!.value, restored.value);
+    expect(session.seed, isNot(oldSeed));
+    final again = GnfpSession(store: store);
+    expect((await again.load(GnfpLedger()))!.value, restored.value);
+    expect(again.seed, newSeed);
+    expect(
+      backupPhraseFor(again.address!, seed: again.seed),
+      backupPhraseFor(restored, seed: newSeed),
+    );
+  });
+
   test('parseStore restores a backup phrase and ignores empty login-only files', () {
     final a = GnfpLedger().createAddress(seed: 'phrase-keep');
     final phrase = backupPhraseFor(a, seed: 'phrase-keep');
