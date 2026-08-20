@@ -21,7 +21,7 @@ void main() {
     expect(cmd.user, '$addr.worker');
     expect(cmd.worker, 'worker');
     expect(cmd.command, contains('--worker worker'));
-    expect(gnfpMineVersion, '1.0.3');
+    expect(gnfpMineVersion, '1.0.4');
     expect(gnfpMineClient, 'GNFPHash');
     expect(gnfpMineAlgorithm, 'GNFPHash');
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
@@ -141,6 +141,26 @@ void main() {
     )!;
     expect(capped.threads, 3);
     expect(capped.command, contains('--threads 3'));
+    expect(capped.cpuCores, 4);
+    expect(capped.threads <= capped.cpuCores, isTrue);
+  });
+
+  test('10 requested on 6 physical / 12 logical caps at physical cpuCores', () {
+    expect(gnfpHonorThreads(10, processors: 12, physical: 6), 6);
+    expect(gnfpMineMaxThreads(processors: 12, physical: 6), 5);
+    final inv = gnfpDeviceCpuInventory(processors: 12, physical: 6);
+    expect(inv.cpuCores, 6);
+    expect(inv.cpuThreads, 12);
+    expect(inv.smt, 2);
+    final cmd = buildWalletMineCommand(
+      address: 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c',
+      threads: 10,
+      processors: 12,
+      physical: 6,
+    )!;
+    expect(cmd.cpuCores, 6);
+    expect(cmd.threads <= cmd.cpuCores, isTrue);
+    expect(cmd.threads, 5);
   });
 
   test('cpu hash matches the live book personal and finds a 1-bit share', () {
@@ -340,6 +360,9 @@ void main() {
     expect(login!['threads'], miner.liveThreads);
     expect(login!['client'], 'GNFPHash');
     expect(login!['algorithm'], 'GNFPHash');
+    expect(login!['version'], '1.0.4');
+    expect(login!['cpuCores'], cmd.cpuCores);
+    expect((login!['threads'] as int) <= (login!['cpuCores'] as int), isTrue);
     expect(submit, isNotNull);
     expect(submit!['login'], cmd.user);
     expect(submit!['threads'], miner.liveThreads);
