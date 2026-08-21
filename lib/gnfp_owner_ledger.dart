@@ -95,18 +95,18 @@ bool _involves(String address, {required String from, required String to}) {
   return from == address || to == address;
 }
 
-/// Unconfirmed hash micros stay off the explorer. Legacy rows (no flag) stay.
+/// Unconfirmed hash micros stay off the explorer. User send/receive for
+/// this gnfp1 stay (pending sends are still this address's movements).
 bool ownerHistoryVisible(dynamic tx) {
   if (tx is GnfpTx) {
     if (tx.kind == 'hash' && tx.confirmed != true) return false;
-    if (tx.confirmed == false) return false;
     return true;
   }
   if (tx is Map) {
     final kind = tx['kind']?.toString() ?? '';
     final confirmed = tx['confirmed'];
     if (kind == 'hash' && confirmed != true) return false;
-    if (confirmed == false) return false;
+    if (kind == 'hash' && confirmed == false) return false;
     return true;
   }
   return true;

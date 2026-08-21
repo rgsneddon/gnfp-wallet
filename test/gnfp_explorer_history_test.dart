@@ -20,6 +20,28 @@ class BookHistoryClient extends GnfpPoolClient {
     }
     return {'ok': true, 'coin': 'GNFP', 'txs': txs};
   }
+
+  @override
+  Future<Map<String, dynamic>> send({
+    required String from,
+    required String to,
+    required double amount,
+    String memo = '',
+  }) async {
+    final tx = {
+      'id': 'wallet-sx',
+      'from': from,
+      'to': to,
+      'amount': amount,
+      'kind': 'send',
+      'asset': 'GNFP',
+      'memo': memo,
+      'confirmed': false,
+      'foundAt': 1500,
+    };
+    txs.add(Map<String, dynamic>.from(tx));
+    return {'ok': true, 'tx': tx, 'fromBalance': 0, 'toBalance': amount};
+  }
 }
 
 void main() {
@@ -107,6 +129,59 @@ void main() {
     expect(xls, contains(peer));
     expect(xls.indexOf('book-rx'), lessThan(xls.indexOf('book-sx')));
     expect(find.byKey(const Key('gnfp-owner-export-status')), findsOneWidget);
+  });
+
+  testWidgets('Explorer shows this gnfp1 send and receive from the real history path', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    const peer = 'gnfp1cccccccccccccccccccccccccccccccccccccccc';
+    final owner = GnfpLedger().createAddress(seed: 'explorer-send-keep');
+    final txs = <Map<String, dynamic>>[
+      {
+        'id': 'book-rx',
+        'from': peer,
+        'to': owner.value,
+        'amount': 4,
+        'kind': 'send',
+        'confirmed': true,
+        'foundAt': 2000,
+      },
+    ];
+    final ledger = GnfpLedger(pool: BookHistoryClient(txs));
+    ledger.adopt(owner);
+    await ledger.send(from: owner, to: GnfpAddress(peer), amount: 1, memo: 'out');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExplorerScreen(ledger: ledger, address: owner),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-owner-kind-book-rx')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-book-rx'))).data, 'receive');
+    expect(find.byKey(const Key('gnfp-owner-kind-wallet-sx')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-wallet-sx'))).data, 'send');
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-from-wallet-sx'))).data, 'your address');
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-to-wallet-sx'))).data, peer);
+    txs.removeWhere((t) => t['id'] == 'wallet-sx');
+    txs.add({
+      'id': 'wallet-sx',
+      'from': owner.value,
+      'to': peer,
+      'amount': 1,
+      'kind': 'send',
+      'confirmed': true,
+      'height': 90,
+      'foundAt': 1500,
+    });
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-owner-kind-wallet-sx')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-wallet-sx'))).data, 'send');
+    expect(find.text('No movements on this address yet.'), findsNothing);
   });
 
   testWidgets('positive balance never shows empty-movements copy', (tester) async {

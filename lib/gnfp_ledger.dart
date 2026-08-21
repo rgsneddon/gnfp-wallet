@@ -100,8 +100,7 @@ class GnfpLedger {
         txs: (json['txs'] as List?) ?? const [],
       );
       for (final row in rows) {
-        if (_txs.any((t) => t.id == row.id)) continue;
-        _txs.add(GnfpTx(
+        final next = GnfpTx(
           id: row.id,
           from: row.from,
           to: row.to,
@@ -110,7 +109,14 @@ class GnfpLedger {
           memo: row.memo,
           height: row.height,
           foundAt: row.foundAt,
-        ));
+          confirmed: true,
+        );
+        final i = _txs.indexWhere((t) => t.id == row.id);
+        if (i >= 0) {
+          _txs[i] = next;
+        } else {
+          _txs.add(next);
+        }
       }
       return ownerRows(address);
     } catch (_) {
