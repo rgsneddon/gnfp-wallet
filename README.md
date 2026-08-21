@@ -5,7 +5,7 @@ $GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 - Pool: https://gnfp.restoreprivacy.online
 - Stratum: `de.restoreprivacy.online:1474` (TLS; GNFPHash 1.0.5 — https://github.com/rgsneddon/GNFPHash)
 - Coin: GNFP (not PERC, not Beam)
-- Current pin: **0.1.8** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.1.8
+- Current pin: **0.1.9** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.1.9
 - Operator status (all pins / all platforms): https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md
 
 ## Install
@@ -20,7 +20,7 @@ iPhone and iPad do not show the Applications dialog: the IPA is installed into t
 
 **iPhone / iPad** — unsigned `gnfp-wallet-0.1.0-ios.ipa` / `gnfp-wallet-0.1.0-ipad.ipa` (sideload).
 
-**Windows / Linux / Arch** — attach `gnfp-wallet-<pin>-windows.zip`, `-linux.zip`, `-archlinux.zip` to the **same** tag the Mac already used. Current GUI pin **0.1.8** is already on `v0.1.8`. Pins and leftover live only in https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md (`WINDOWS_HANDOFF.md` in this repo is a pointer).
+**Windows / Linux / Arch** — attach `gnfp-wallet-<pin>-windows.zip`, `-linux.zip`, `-archlinux.zip` to the **same** tag the Mac already used. Current GUI pin **0.1.9** has Darwin/Android/iOS on `v0.1.9`; Windows/Linux/Arch are laptop leftover. Pins live only in https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md (`WINDOWS_HANDOFF.md` in this repo is a pointer).
 
 ```
 flutter pub get
