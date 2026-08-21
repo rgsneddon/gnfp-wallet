@@ -7,11 +7,18 @@ import 'dart:io';
 import 'gnfp_ledger.dart';
 
 class GnfpPoolClient {
+  /// Hung DNS/TLS on Windows otherwise looks like Network Tip: … forever.
+  static const defaultConnectionTimeout = Duration(seconds: 8);
+
   GnfpPoolClient({this.baseUrl = gnfpPoolUrl, HttpClient? http})
-      : _http = http ?? HttpClient();
+      : _http = http ??
+            (HttpClient()..connectionTimeout = defaultConnectionTimeout);
 
   final String baseUrl;
   final HttpClient _http;
+
+  /// The live [HttpClient] this pool uses (default one always has a timeout).
+  HttpClient get httpClient => _http;
   static const bookFallback = 'https://explorer.restoreprivacy.online';
 
   Uri _uri(String path, {String? origin}) {

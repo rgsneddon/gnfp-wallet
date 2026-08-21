@@ -1,5 +1,5 @@
 pkgname=gnfp-wallet
-pkgver=0.1.6
+pkgver=0.1.8
 pkgrel=1
 pkgdesc='$GNFP privacy wallet'
 url='https://github.com/rgsneddon/gnfp-wallet'

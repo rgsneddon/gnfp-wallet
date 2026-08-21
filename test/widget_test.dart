@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -369,7 +370,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
 
-    final ledger = GnfpLedger(pool: GnfpPoolClient(baseUrl: pool!.uri.toString()));
+    final http = HttpClient();
+    addTearDown(() => http.close(force: true));
+    final poolClient = GnfpPoolClient(baseUrl: pool!.uri.toString(), http: http);
+    final ledger = GnfpLedger(pool: poolClient);
     final expected = await tester.runAsync(ledger.networkTip);
     expect(expected, isNotNull);
     expect(expected, greaterThanOrEqualTo(0));
@@ -393,6 +397,8 @@ void main() {
     expect(find.text('Network Tip: …'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
+    http.close(force: true);
+    await tester.pump();
   });
 
   testWidgets('current pin hides the top update line', (tester) async {
@@ -486,4 +492,44 @@ void main() {
     http.close(force: true);
     await tester.pump();
   });
+
+  testWidgets('Network Tip surfaces pool timeout instead of hanging on …', (tester) async {
+    final store = File('${Directory.systemTemp.path}/gnfp-widget-session-timeout.json');
+    if (store.existsSync()) store.deleteSync();
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(
+      GnfpWalletApp(
+        ledger: GnfpLedger(pool: _TimeoutPool()),
+        session: GnfpSession(store: store),
+        updateCheck: GnfpUpdateCheck(fetchJson: (_) async => null),
+      ),
+    );
+    await pumpBoot(tester);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const Key('gnfp-network-tip')), findsOneWidget);
+    expect(find.text('Network Tip: …'), findsNothing);
+    final tip = tester.widget<Text>(find.byKey(const Key('gnfp-network-tip')));
+    expect(tip.data, contains('timeout'));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+}
+
+class _TimeoutPool extends GnfpPoolClient {
+  _TimeoutPool()
+      : super(http: HttpClient()..connectionTimeout = const Duration(milliseconds: 50));
+
+  @override
+  Future<int> networkTip() async {
+    throw TimeoutException('hung TLS');
+  }
+
+  @override
+  Future<double> balance(String address) async {
+    throw TimeoutException('hung TLS');
+  }
 }

@@ -319,6 +319,17 @@ void main() {
     expect(GnfpVersion.compare('0.1.0', '0.0.9'), greaterThan(0));
   });
 
+  test('default GnfpPoolClient sets connectionTimeout so hung TLS cannot look like forever Network Tip', () {
+    final client = GnfpPoolClient();
+    addTearDown(() => client.httpClient.close(force: true));
+    expect(client.httpClient.connectionTimeout, isNotNull);
+    expect(
+      client.httpClient.connectionTimeout,
+      GnfpPoolClient.defaultConnectionTimeout,
+    );
+    expect(client.httpClient.connectionTimeout!.inSeconds, greaterThanOrEqualTo(4));
+  });
+
   test('parseNetworkTip reads tipHeight tip or height as num or string', () {
     expect(GnfpPoolClient.parseNetworkTip({'tipHeight': 7}), 7);
     expect(GnfpPoolClient.parseNetworkTip({'tip': '12'}), 12);

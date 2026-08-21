@@ -42,6 +42,7 @@ class _WalletScreenState extends State<WalletScreen> {
   String status = '';
   double? networkBal;
   int? networkTip;
+  String? networkError;
   Timer? _poll;
   Timer? _retry;
   bool _trustZero = false;
@@ -81,11 +82,31 @@ class _WalletScreenState extends State<WalletScreen> {
           if (kept > 0) networkBal = kept;
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) setState(() => networkError = _shortNetworkError(e));
+    }
     try {
       final tip = await widget.ledger.networkTip();
-      if (mounted) setState(() => networkTip = tip);
-    } catch (_) {}
+      if (mounted) {
+        setState(() {
+          networkTip = tip;
+          networkError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => networkError = _shortNetworkError(e));
+    }
+  }
+
+  static String _shortNetworkError(Object e) {
+    final s = e.toString();
+    if (s.contains('TimeoutException') ||
+        s.toLowerCase().contains('timed out') ||
+        s.toLowerCase().contains('timeout')) {
+      return 'timeout';
+    }
+    final line = s.split('\n').first.trim();
+    return line.length > 80 ? '${line.substring(0, 80)}…' : line;
   }
 
   Future<void> _openSocial(GnfpSocialChannel channel) async {
@@ -242,7 +263,7 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Network Tip: ${networkTip ?? '…'}',
+            'Network Tip: ${networkTip ?? '…'}${networkError == null || networkError!.isEmpty ? '' : ' — $networkError'}',
             key: const Key('gnfp-network-tip'),
             style: const TextStyle(
               fontSize: 14,
