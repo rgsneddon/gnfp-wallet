@@ -28,6 +28,93 @@ flutter test
 flutter run
 ```
 
+## CLI wallet how-to (Windows / Linux / macOS)
+
+The GUI zip is one way to hold GNFP. The **CLI wallet** is the other: same `gnfp1` seed rules, same official book `https://gnfp.restoreprivacy.online`, same miner command as the Mine tab. Source is `bin/gnfp_cli.dart` (library `lib/gnfp_cli.dart`). It is not a separate coin or a sibling GitHub tag.
+
+### Install / run
+
+You need Dart (the Flutter SDK is enough). From a clone of this repo:
+
+**Windows** (cmd or PowerShell):
+
+```
+cd gnfp-wallet
+flutter pub get
+dart run bin/gnfp_cli.dart -h
+pack\gnfp-cli.cmd -h
+```
+
+**Linux**:
+
+```
+cd gnfp-wallet
+flutter pub get
+dart run bin/gnfp_cli.dart -h
+chmod +x pack/gnfp-cli
+./pack/gnfp-cli -h
+```
+
+**macOS**:
+
+```
+cd gnfp-wallet
+flutter pub get
+dart run bin/gnfp_cli.dart -h
+chmod +x pack/gnfp-cli
+./pack/gnfp-cli -h
+```
+
+`-h` and `--help` print the same tree:
+
+```
+usage: gnfp-cli [-h] {new,restore,show,balance,history,tip,send,mine-cmd} ...
+
+Command-line GNFP wallet
+```
+
+### Session store
+
+The CLI persists seed + `gnfp1` so `show` / `balance` / `send` reuse the same wallet as a later launch (and the GUI, if they share the store).
+
+| OS | Default session file |
+|----|----------------------|
+| Windows | `%APPDATA%\GNFP\session.json` |
+| Linux | `~/.gnfp/session.json` |
+| macOS | `~/Library/Application Support/GNFP/session.json` |
+
+Override with `--store PATH` (tests and extra wallets). Do not point `--pool` at a random host unless you intend a local book; the default is the official pool.
+
+### Verbs
+
+| Command | What it does |
+|---------|----------------|
+| `new` | Create a new hex seed + `gnfp1` address and write the session |
+| `restore <hex>` | Restore from an existing hex seed (32 hex chars) |
+| `show` | Print seed and address |
+| `balance` | Query live spendable balance on the official book |
+| `history` | Query address history (owner ledger) |
+| `tip` | Query network tip (`ticker=GNFP` and height) |
+| `send --to gnfp1… --amount N` | Send GNFP via the official pool book |
+| `mine-cmd` | Print a GNFPHash / `gnfp-mine` command for this address (public TLS book) |
+
+Examples (Windows; drop `dart run bin/gnfp_cli.dart` in for `gnfp-cli` on every OS):
+
+```
+dart run bin/gnfp_cli.dart new
+dart run bin/gnfp_cli.dart show
+dart run bin/gnfp_cli.dart restore aabbccddeeff00112233445566778899
+dart run bin/gnfp_cli.dart balance
+dart run bin/gnfp_cli.dart history
+dart run bin/gnfp_cli.dart tip
+dart run bin/gnfp_cli.dart send --to gnfp1… --amount 1.5
+dart run bin/gnfp_cli.dart mine-cmd --threads 2
+```
+
+`tip` talks to the book and does not need a session. `balance` / `history` / `send` / `mine-cmd` / `show` need `new` or `restore` first. `send` moves **real** GNFP on the live book — check `balance` and the destination `gnfp1` before you run it.
+
+Darwin packaging of this CLI onto a **later** GUI pin is Mac leftover (same tag as that pin, no `vX.Y.Z-cli` sibling). Do not rebuild the 0.1.8 GUI zips to carry it.
+
 macOS GitHub disk image (Developer ID + notary + drag-to-Applications):
 
 ```
