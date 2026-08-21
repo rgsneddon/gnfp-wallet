@@ -151,6 +151,18 @@ class GnfpPoolClient {
     return 0;
   }
 
+  static double parsePending(Map<String, dynamic> json) {
+    for (final key in const ['pending', 'pendingMining', 'pendingHashBonus']) {
+      final v = json[key];
+      if (v is num) return v.toDouble();
+      if (v is String) {
+        final n = double.tryParse(v.trim());
+        if (n != null) return n;
+      }
+    }
+    return 0;
+  }
+
   Future<double> balance(String address) async {
     final json = await get('/api/wallet/balance?address=$address');
     return parseSpendable(json);

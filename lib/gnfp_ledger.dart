@@ -44,6 +44,7 @@ class GnfpTx {
     this.memo = '',
     this.height,
     this.foundAt,
+    this.confirmed,
   });
 
   final String id;
@@ -54,6 +55,8 @@ class GnfpTx {
   final String memo;
   final int? height;
   final int? foundAt;
+  /// null = legacy row (visible). false = in-round micro, omitted from explorer.
+  final bool? confirmed;
 
   factory GnfpTx.fromJson(Map<String, dynamic> json) {
     return GnfpTx(
@@ -65,6 +68,7 @@ class GnfpTx {
       memo: json['memo']?.toString() ?? '',
       height: (json['height'] as num?)?.toInt(),
       foundAt: (json['foundAt'] as num?)?.toInt(),
+      confirmed: json['confirmed'] is bool ? json['confirmed'] as bool : null,
     );
   }
 }
@@ -77,6 +81,7 @@ class GnfpLedger {
   final Random _random;
   final GnfpPoolClient pool;
   final Map<String, double> _balances = {};
+  final Map<String, double> _pendingMining = {};
   final List<GnfpTx> _txs = [];
   int? lastTip;
 
@@ -133,6 +138,9 @@ class GnfpLedger {
 
   double balance(GnfpAddress address) => _balances[address.value] ?? 0;
 
+  /// Unconfirmed hash-bonus for [address] this open round. Not an explorer row.
+  double pendingMining(GnfpAddress address) => _pendingMining[address.value] ?? 0;
+
   void adopt(GnfpAddress address) {
     _balances.putIfAbsent(address.value, () => 0);
   }
@@ -156,7 +164,9 @@ class GnfpLedger {
     adopt(address);
     final previous = balance(address);
     try {
-      final live = await pool.balance(address.value);
+      final json = await pool.get('/api/wallet/balance?address=${address.value}');
+      final live = GnfpPoolClient.parseSpendable(json);
+      _pendingMining[address.value] = GnfpPoolClient.parsePending(json);
       if (live > 0) {
         _balances[address.value] = live;
         return balance(address);

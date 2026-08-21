@@ -56,6 +56,24 @@ void main() {
   GnfpLedger liveLedger() =>
       GnfpLedger(pool: GnfpPoolClient(baseUrl: pool!.uri.toString()));
 
+  test('live pool share-accept is pending spendable with empty owner history', () async {
+    final ledger = liveLedger();
+    final owner = ledger.createAddress(seed: 'live-round-explorer');
+    ledger.adopt(owner);
+    final script = File('${shippedWalletHttp().parent.path}/submit_share_once.mjs');
+    expect(script.existsSync(), isTrue, reason: script.path);
+    final ran = await Process.run(
+      'node',
+      [script.path, pool!.uri.toString(), owner.value],
+      workingDirectory: script.parent.parent.path,
+    ).timeout(const Duration(seconds: 8));
+    expect(ran.exitCode, 0, reason: '${ran.stdout} ${ran.stderr}');
+    final pending = (1 << 14) / 1e9;
+    expect(await ledger.syncSpendable(owner), closeTo(pending, 1e-12));
+    expect(ledger.pendingMining(owner), closeTo(pending, 1e-12));
+    expect((await ledger.syncOwnerHistory(owner)), isEmpty);
+  });
+
   test('syncSpendable does not wipe a known amount with live zero', () async {
     final ledger = GnfpLedger(
       pool: GnfpPoolClient(baseUrl: 'http://127.0.0.1:1'),
@@ -66,6 +84,25 @@ void main() {
     final kept = await ledger.syncSpendable(a);
     expect(kept, 1200);
     expect(ledger.balance(a), 1200);
+  });
+
+  test('syncSpendable follows pending mining credit then a confirmed round amount', () async {
+    final pending = (1 << 14) / 1e9;
+    final bundled = 0.99 + 2 * pending;
+    final addr = GnfpLedger().createAddress(seed: 'pending-round');
+    final pool = _PendingThenRoundClient(addr.value, pending: pending, bundled: bundled);
+    final ledger = GnfpLedger(pool: pool);
+    ledger.adopt(addr);
+    expect(await ledger.syncSpendable(addr), pending);
+    expect(ledger.balance(addr), pending);
+    expect((await ledger.syncOwnerHistory(addr)), isEmpty);
+    pool.tipReached = true;
+    expect(await ledger.syncSpendable(addr), bundled);
+    final rows = await ledger.syncOwnerHistory(addr);
+    expect(rows.length, 1);
+    expect(rows.first.kind, 'mine');
+    expect(rows.first.amount, bundled);
+    expect(rows.first.height, 12);
   });
 
   test('parseSpendable reads string balances from the book', () {
@@ -311,6 +348,46 @@ void main() {
   test('writes scratch evidence from shipped functions', () async {
     await writeScratchEvidence(liveLedger());
   });
+}
+
+class _PendingThenRoundClient extends GnfpPoolClient {
+  _PendingThenRoundClient(this.address, {required this.pending, required this.bundled});
+
+  final String address;
+  final double pending;
+  final double bundled;
+  bool tipReached = false;
+
+  @override
+  Future<Map<String, dynamic>> get(String path) async {
+    if (path.contains('/wallet/balance')) {
+      return {
+        'ok': true,
+        'coin': 'GNFP',
+        'balance': tipReached ? bundled : pending,
+        'pending': tipReached ? 0 : pending,
+      };
+    }
+    if (path.contains('/wallet/history')) {
+      if (!tipReached) return {'ok': true, 'coin': 'GNFP', 'txs': []};
+      return {
+        'ok': true,
+        'coin': 'GNFP',
+        'txs': [
+          {
+            'id': 'round-12-${address.substring(0, 12)}',
+            'from': 'coinbase',
+            'to': address,
+            'amount': bundled,
+            'kind': 'mine',
+            'confirmed': true,
+            'height': 12,
+          },
+        ],
+      };
+    }
+    return {'ok': true};
+  }
 }
 
 Future<void> writeScratchEvidence(GnfpLedger ledger) async {

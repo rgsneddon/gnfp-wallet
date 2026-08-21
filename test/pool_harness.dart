@@ -43,6 +43,12 @@ Future<PoolHandle> startShippedPool() async {
     'node',
     [script.path],
     workingDirectory: root,
+    environment: {
+      ...Platform.environment,
+      'GNFP_PRIVACY_SALT': 'test-gnfp-privacy-salt',
+      'GNFP_STRATUM_PORT': '0',
+      'GNFP_HTTP_PORT': '0',
+    },
   );
   final line = await proc.stdout
       .transform(utf8.decoder)

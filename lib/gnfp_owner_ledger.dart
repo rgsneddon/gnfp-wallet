@@ -95,6 +95,23 @@ bool _involves(String address, {required String from, required String to}) {
   return from == address || to == address;
 }
 
+/// Unconfirmed hash micros stay off the explorer. Legacy rows (no flag) stay.
+bool ownerHistoryVisible(dynamic tx) {
+  if (tx is GnfpTx) {
+    if (tx.kind == 'hash' && tx.confirmed != true) return false;
+    if (tx.confirmed == false) return false;
+    return true;
+  }
+  if (tx is Map) {
+    final kind = tx['kind']?.toString() ?? '';
+    final confirmed = tx['confirmed'];
+    if (kind == 'hash' && confirmed != true) return false;
+    if (confirmed == false) return false;
+    return true;
+  }
+  return true;
+}
+
 /// Book history often stores every movement as `send`. Show direction
 /// relative to [address] so incoming credit is receive, outgoing is send.
 String ownerFacingKind({
@@ -283,6 +300,7 @@ List<OwnerLedgerRow> ownerLedgerRows({
   final out = <OwnerLedgerRow>[];
   for (final raw in txs) {
     if (raw is GnfpTx) {
+      if (!ownerHistoryVisible(raw)) continue;
       if (!_involves(addr, from: raw.from, to: raw.to)) continue;
       if (raw.amount <= 0) continue;
       out.add(OwnerLedgerRow.fromTx(raw, extra: {
@@ -293,6 +311,7 @@ List<OwnerLedgerRow> ownerLedgerRows({
     }
     if (raw is Map) {
       final json = Map<String, dynamic>.from(raw);
+      if (!ownerHistoryVisible(json)) continue;
       final from = json['from']?.toString() ?? '';
       final to = json['to']?.toString() ?? '';
       if (!_involves(addr, from: from, to: to)) continue;

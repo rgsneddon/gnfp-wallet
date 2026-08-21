@@ -230,4 +230,79 @@ void main() {
     expect(dest.path.endsWith('.xls'), isTrue);
     expect(dest.readAsStringSync(), contains('Excel.Sheet'));
   });
+
+  testWidgets('explorer stays empty while pending hash-bonus, then one pot+bonus row after tip', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final owner = GnfpLedger().createAddress(seed: 'round-hist');
+    final pending = (1 << 14) / 1e9;
+    final bundled = 0.99 + 2 * pending;
+    final txs = <Map<String, dynamic>>[];
+    final pool = BookRoundClient(balanceValue: pending, pending: pending, txs: txs);
+    final ledger = GnfpLedger(pool: pool);
+    ledger.adopt(owner);
+    expect(await ledger.syncSpendable(owner), pending);
+    expect(ledger.pendingMining(owner), pending);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExplorerScreen(ledger: ledger, address: owner),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('gnfp-owner-kind-live-balance')), findsNothing);
+    expect(find.byKey(const Key('gnfp-owner-kind-hash-open-1')), findsNothing);
+    expect(find.text('No movements on this address yet.'), findsOneWidget);
+
+    txs.add({
+      'id': 'round-71-sealed',
+      'from': 'coinbase',
+      'to': owner.value,
+      'amount': bundled,
+      'kind': 'mine',
+      'confirmed': true,
+      'height': 71,
+      'foundAt': 9000,
+    });
+    pool.balanceValue = bundled;
+    pool.pending = 0;
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.text('No movements on this address yet.'), findsNothing);
+    expect(find.byKey(const Key('gnfp-owner-kind-live-balance')), findsNothing);
+    expect(find.byKey(const Key('gnfp-owner-kind-round-71-sealed')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('gnfp-owner-kind-round-71-sealed'))).data,
+      'receive',
+    );
+  });
+
+}
+
+class BookRoundClient extends GnfpPoolClient {
+  BookRoundClient({this.balanceValue = 0, this.pending = 0, required this.txs});
+
+  double balanceValue;
+  double pending;
+  final List<Map<String, dynamic>> txs;
+
+  @override
+  Future<Map<String, dynamic>> get(String path) async {
+    if (path.contains('/wallet/balance')) {
+      return {
+        'ok': true,
+        'coin': 'GNFP',
+        'balance': balanceValue,
+        'pending': pending,
+      };
+    }
+    if (path.contains('/wallet/history')) {
+      return {'ok': true, 'coin': 'GNFP', 'txs': txs};
+    }
+    return {'ok': true};
+  }
 }

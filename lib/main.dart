@@ -153,6 +153,7 @@ class _GnfpWalletAppState extends State<GnfpWalletApp> {
         seed: session.seed,
         onRestored: (a, seed) async {
           await session.rememberAddress(widget.ledger, a, seed: seed);
+          if (!mounted) return;
           setState(() => address = a);
         },
       ),

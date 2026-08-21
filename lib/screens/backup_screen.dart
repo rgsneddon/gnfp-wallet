@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -18,7 +20,7 @@ class BackupScreen extends StatefulWidget {
   final GnfpAddress address;
   final GnfpLedger ledger;
   final String? seed;
-  final void Function(GnfpAddress address, String seed)? onRestored;
+  final FutureOr<void> Function(GnfpAddress address, String seed)? onRestored;
   final ClipboardDelegate? clipboard;
 
   @override
@@ -91,7 +93,7 @@ class _BackupScreenState extends State<BackupScreen> {
     });
   }
 
-  void _restore() {
+  Future<void> _restore() async {
     final phrase = _typedPhrase();
     final addr = restoreFromPhrase(
       phrase,
@@ -99,12 +101,15 @@ class _BackupScreenState extends State<BackupScreen> {
       widget.address,
       widget.seed,
     );
-    final restoredSeed = restoreSeedHexFromPhrase(phrase);
-    widget.onRestored?.call(
+    final sameWallet = addr.value == widget.address.value;
+    final restoredSeed = sameWallet
+        ? (widget.seed ?? addr.value)
+        : restoreSeedHexFromPhrase(phrase);
+    await widget.onRestored?.call(
       addr,
       restoredSeed.isNotEmpty ? restoredSeed : addr.value,
     );
-    setState(() => status = 'restored ${addr.value}');
+    if (mounted) setState(() => status = 'restored ${addr.value}');
   }
 
   @override
@@ -182,6 +187,7 @@ class _BackupScreenState extends State<BackupScreen> {
           key: const Key('gnfp-wrong-phrase-warning'),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
+            color: GnfpTheme.black,
             border: Border.all(color: GnfpTheme.neonYellow, width: 1.4),
             boxShadow: const [
               BoxShadow(color: GnfpTheme.neonYellow, blurRadius: 8, spreadRadius: 0.4),
@@ -190,7 +196,7 @@ class _BackupScreenState extends State<BackupScreen> {
           child: const Text(
             gnfpWrongPhraseWarning,
             style: TextStyle(
-              color: GnfpTheme.neonYellow,
+              color: GnfpTheme.cream,
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),

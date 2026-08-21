@@ -100,6 +100,7 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
   }
 
   Future<void> _loadBookHistory() async {
+    await widget.ledger.syncSpendable(widget.address);
     await widget.ledger.syncOwnerHistory(widget.address);
     if (mounted) setState(() {});
   }
@@ -112,6 +113,8 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
       ),
     );
     if (live.isNotEmpty) return live;
+    // Pending hash-bonus is spendable but must not appear until the tip.
+    if (widget.ledger.pendingMining(widget.address) > 0) return const [];
     final bal = widget.ledger.balance(widget.address);
     if (bal > 0) {
       return [
@@ -167,7 +170,8 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
     final owner = widget.address.value;
     final rows = _rows();
     final bal = widget.ledger.balance(widget.address);
-    final showEmpty = rows.isEmpty && bal <= 0;
+    final pending = widget.ledger.pendingMining(widget.address);
+    final showEmpty = rows.isEmpty && (bal <= 0 || pending > 0);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
