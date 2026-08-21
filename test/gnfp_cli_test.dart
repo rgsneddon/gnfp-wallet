@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gnfp_wallet/gnfp_build_stamp.dart';
 import 'package:gnfp_wallet/gnfp_cli.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_mine_command.dart';
@@ -29,7 +30,19 @@ void main() {
     expect(help, contains('Send GNFP via the official pool book'));
     expect(help, contains('Print a miner command for this address'));
     expect(help, contains('-h, --help'));
+    expect(help, contains(kGnfpPackageVersion));
+    expect(help, contains(gnfpCliVersionLine()));
     expect(File('bin/gnfp_cli.dart').readAsStringSync(), contains('runGnfpCli'));
+  });
+
+  test('CLI pin is the shipped GUI pin from pubspec + build stamp', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final m = RegExp(r'^version:\s*([0-9.]+)\+', multiLine: true).firstMatch(pubspec)!;
+    expect(kGnfpPackageVersion, m.group(1));
+    expect(gnfpCliVersionLine(), '\$GNFP core wallet v$kGnfpPackageVersion (cli)');
+    expect(gnfpCliHelp(), contains(gnfpCliVersionLine()));
+    expect(parseGnfpCliArgs(['--version']).version, isTrue);
+    expect(parseGnfpCliArgs(['-V']).version, isTrue);
   });
 
   test('parseGnfpCliArgs treats -h and --help as help', () {
@@ -63,6 +76,11 @@ void main() {
     out.clear();
     expect(await cli(['--help']), 0);
     expect(out.toString(), gnfpCliHelp());
+
+    out.clear();
+    expect(await cli(['--version']), 0);
+    expect(out.toString().trim(), gnfpCliVersionLine());
+    expect(out.toString(), contains(kGnfpPackageVersion));
 
     out.clear();
     expect(await cli(['new']), 0);

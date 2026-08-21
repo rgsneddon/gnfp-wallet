@@ -7,6 +7,7 @@ library;
 import 'dart:io';
 import 'dart:math';
 
+import 'gnfp_build_stamp.dart';
 import 'gnfp_ledger.dart';
 import 'gnfp_mine_command.dart';
 import 'gnfp_pool_client.dart';
@@ -35,11 +36,13 @@ String gnfpCliUsageLine() {
   return 'usage: gnfp-cli [-h] {$names} ...';
 }
 
+String gnfpCliVersionLine() => '${gnfpCoreWalletTitle()} (cli)';
+
 String gnfpCliHelp() {
   final buf = StringBuffer();
   buf.writeln(gnfpCliUsageLine());
   buf.writeln();
-  buf.writeln('Command-line GNFP wallet');
+  buf.writeln(gnfpCliVersionLine());
   buf.writeln();
   buf.writeln('positional arguments:');
   buf.writeln('  {${gnfpCliVerbs.map((v) => v.name).join(',')}}');
@@ -49,6 +52,7 @@ String gnfpCliHelp() {
   buf.writeln();
   buf.writeln('options:');
   buf.writeln('  -h, --help            show this help message and exit');
+  buf.writeln('  -V, --version         print $kGnfpPackageVersion and exit');
   buf.writeln('  --store PATH          session JSON (default: platform GNFP store)');
   buf.writeln('  --pool URL            book origin (default: $gnfpPoolUrl)');
   buf.writeln('  --to ADDRESS          send destination gnfp1 (send)');
@@ -60,6 +64,7 @@ String gnfpCliHelp() {
 class GnfpCliParse {
   const GnfpCliParse({
     required this.help,
+    this.version = false,
     this.verb,
     this.store,
     this.pool,
@@ -71,6 +76,7 @@ class GnfpCliParse {
   });
 
   final bool help;
+  final bool version;
   final String? verb;
   final String? store;
   final String? pool;
@@ -83,6 +89,7 @@ class GnfpCliParse {
 
 GnfpCliParse parseGnfpCliArgs(List<String> args) {
   var help = false;
+  var version = false;
   String? verb;
   String? store;
   String? pool;
@@ -96,6 +103,10 @@ GnfpCliParse parseGnfpCliArgs(List<String> args) {
     final a = args[i];
     if (a == '-h' || a == '--help' || a == 'help') {
       help = true;
+      continue;
+    }
+    if (a == '-V' || a == '--version') {
+      version = true;
       continue;
     }
     if (a == '--store') {
@@ -174,7 +185,8 @@ GnfpCliParse parseGnfpCliArgs(List<String> args) {
   }
 
   return GnfpCliParse(
-    help: help || (verb == null && store == null && pool == null),
+    help: help || (verb == null && !version && store == null && pool == null),
+    version: version,
     verb: verb,
     store: store,
     pool: pool,
@@ -216,6 +228,10 @@ class GnfpCli {
       err.writeln(parsed.error);
       err.write(gnfpCliHelp());
       return 2;
+    }
+    if (parsed.version) {
+      out.writeln(gnfpCliVersionLine());
+      return 0;
     }
     if (parsed.help) {
       out.write(gnfpCliHelp());

@@ -70,8 +70,10 @@ chmod +x pack/gnfp-cli
 ```
 usage: gnfp-cli [-h] {new,restore,show,balance,history,tip,send,mine-cmd} ...
 
-Command-line GNFP wallet
+$GNFP core wallet v0.1.9 (cli)
 ```
+
+The CLI pin is the same as the GUI pin (`kGnfpPackageVersion` / `pubspec.yaml`). `--version` / `-V` prints that line. There is no sibling CLI tag.
 
 ### Session store
 

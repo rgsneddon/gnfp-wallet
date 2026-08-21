@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gnfp_wallet/gnfp_build_stamp.dart';
+import 'package:gnfp_wallet/gnfp_cli.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_session.dart';
 import 'package:gnfp_wallet/gnfp_update.dart';
@@ -53,7 +54,6 @@ void main() {
         .firstMatch(pubspec)!;
     expect(kGnfpPackageVersion, m.group(1));
     expect(kGnfpCommitCount.toString(), m.group(2));
-    expect(kGnfpPackageVersion, '0.1.8');
     expect(gnfpCoreWalletTitle(), '\$GNFP core wallet v$kGnfpPackageVersion');
     expect(kGnfpCoreWalletTitlePrefix, r'$GNFP core wallet v');
     expect(
@@ -68,6 +68,8 @@ void main() {
       File('pack/archlinux/PKGBUILD').readAsStringSync(),
       contains('pkgver=$kGnfpPackageVersion'),
     );
+    expect(gnfpCliVersionLine(), contains(kGnfpPackageVersion));
+    expect(File('pack/gnfp-cli.cmd').existsSync(), isTrue);
   });
 
   testWidgets('MaterialApp title is \$GNFP core wallet v plus the shipped pin', (tester) async {
