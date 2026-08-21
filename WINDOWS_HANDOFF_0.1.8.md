@@ -8,7 +8,7 @@ Current pin here: **0.1.8**. In-wallet miner **GNFPHash 1.0.5** (unchanged). Nod
 
 ## Laptop leftover (this Mac cannot ship these)
 
-Attach to **the same** `v0.1.8` tag. No sibling tags (`v0.1.8-windows` etc). Do **not** rebuild 0.1.7 or 0.1.6.
+**Attached 2026-08-21** to **the same** `v0.1.8` tag. No sibling tags (`v0.1.8-windows` etc). Do **not** rebuild 0.1.7 or 0.1.6.
 
 | File | For |
 |------|-----|
