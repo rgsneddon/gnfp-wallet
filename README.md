@@ -3,9 +3,10 @@
 $GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 
 - Pool: https://gnfp.restoreprivacy.online
-- Stratum: `de.restoreprivacy.online:1474` (TLS; GNFPHash 1.0.5 — https://github.com/rgsneddon/GNFPHash)
+- Stratum: `de.restoreprivacy.online:1474` (TLS; official miner **gnfp-cminer 1.1.0** — https://github.com/rgsneddon/gnfp-cminer). Node **GNFPHash** / `gnfp-mine` is deprecated.
 - Coin: GNFP (not PERC, not Beam)
-- Current pin: **0.1.9** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.1.9
+- Current pin: **0.2.0** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.2.0
+- Mine tab: same GNFPHash-v1 wire as gnfp-cminer, declared **5% miner** dual-login fee (not a pool tax; the book still takes **1%** of formed blocks).
 - Operator status (all pins / all platforms): https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md
 
 ## Install
@@ -20,7 +21,7 @@ iPhone and iPad do not show the Applications dialog: the IPA is installed into t
 
 **iPhone / iPad** — unsigned `gnfp-wallet-0.1.0-ios.ipa` / `gnfp-wallet-0.1.0-ipad.ipa` (sideload).
 
-**Windows / Linux / Arch** — attach `gnfp-wallet-<pin>-windows.zip`, `-linux.zip`, `-archlinux.zip` to the **same** tag the Mac already used. Current GUI pin **0.1.9** has Darwin/Android/iOS on `v0.1.9`; Windows/Linux/Arch are laptop leftover. Pins live only in https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md (`WINDOWS_HANDOFF.md` in this repo is a pointer).
+**Windows / Linux / Arch** — attach `gnfp-wallet-<pin>-windows.zip`, `-linux.zip`, `-archlinux.zip` to the **same** tag the Mac already used. Current GUI pin **0.2.0** has Darwin/Android/iOS on `v0.2.0`; Windows/Linux/Arch are laptop leftover. Do **not** rebuild **0.1.9**. Pins live only in https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md (`WINDOWS_HANDOFF.md` in this repo is a pointer).
 
 ```
 flutter pub get
@@ -70,7 +71,7 @@ chmod +x pack/gnfp-cli
 ```
 usage: gnfp-cli [-h] {new,restore,show,balance,history,tip,send,mine-cmd} ...
 
-$GNFP core wallet v0.1.9 (cli)
+$GNFP core wallet v0.2.0 (cli)
 ```
 
 The CLI pin is the same as the GUI pin (`kGnfpPackageVersion` / `pubspec.yaml`). `--version` / `-V` prints that line. There is no sibling CLI tag.
@@ -98,7 +99,7 @@ Override with `--store PATH` (tests and extra wallets). Do not point `--pool` at
 | `history` | Query address history (owner ledger) |
 | `tip` | Query network tip (`ticker=GNFP` and height) |
 | `send --to gnfp1… --amount N` | Send GNFP via the official pool book |
-| `mine-cmd` | Print a GNFPHash / `gnfp-mine` command for this address (public TLS book) |
+| `mine-cmd` | Print a `gnfp-cminer` command for this address (public TLS book) |
 
 Examples (Windows; drop `dart run bin/gnfp_cli.dart` in for `gnfp-cli` on every OS):
 
@@ -115,14 +116,16 @@ dart run bin/gnfp_cli.dart mine-cmd --threads 2
 
 `tip` talks to the book and does not need a session. `balance` / `history` / `send` / `mine-cmd` / `show` need `new` or `restore` first. `send` moves **real** GNFP on the live book — check `balance` and the destination `gnfp1` before you run it.
 
-Darwin packaging of this CLI onto a **later** GUI pin is Mac leftover (same tag as that pin, no `vX.Y.Z-cli` sibling). Do not rebuild the 0.1.8 GUI zips to carry it.
+Darwin packaging of this CLI is on the **same** GUI pin (no `vX.Y.Z-cli` sibling). Do not rebuild 0.1.9 to carry 0.2.0.
 
 macOS GitHub disk image (Developer ID + notary + drag-to-Applications):
 
 ```
 python3 pack/macos/sign_and_notarize.py --build
-gh release upload v0.1.0 dist/gnfp-wallet-0.1.0-macos.dmg dist/gnfp-wallet-0.1.0-macos.zip --clobber
+gh release upload v0.2.0 dist/gnfp-wallet-0.2.0-macos.dmg dist/gnfp-wallet-0.2.0-macos.zip --clobber
 ```
+
+0.2.0: official in-wallet miner is **gnfp-cminer 1.1.0** (same GNFPHash-v1 wire). Mine tab states the **5% miner** dual-login fee. That is **not** a pool tax — formed blocks still take **1%** for the operator. Node GNFPHash / `gnfp-mine` is deprecated. `HASH_TX_LIVE` stays **0**. Do not rebuild 0.1.9.
 
 0.1.0: next pin after 0.0.9 (digits 0–9; there is no 0.0.10). Mine tab H/s is the same verified work rate the pool publishes (`accepted × 2^jobBits / elapsed` from the first accepted share). Login is not an accept. 0.0.9 showed farm hashes/sec from `start()`, so the wallet number did not match the pool.
 

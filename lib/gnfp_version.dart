@@ -18,7 +18,7 @@ class GnfpVersion {
 
   int get buildNumber => commitCount < 0 ? 0 : commitCount;
 
-  /// Old 1.x and pre-reset 0.1.10+ (patch ≥ 10). New 0.1.0–0.1.9 are public.
+  /// Old 1.x and pre-reset 0.1.10+ (patch ≥ 10). 0.1.0–0.1.9 and 0.2.0+ are public.
   static bool isLegacyPin(String version) {
     final p = version.split('.').map((s) => int.tryParse(s) ?? 0).toList();
     if (p.isEmpty) return true;

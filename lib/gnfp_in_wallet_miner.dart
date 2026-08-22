@@ -1,4 +1,4 @@
-/// In-wallet gnfp-mine 1.0.9 stratum client. Credits [user] (gnfp1….worker).
+/// In-wallet gnfp-cminer 1.1.0 stratum client. Same 5% dual-login fee as the C miner.
 library;
 
 import 'dart:async';
@@ -51,13 +51,17 @@ class InWalletMiner {
   final DateTime Function() _now;
 
   Socket? _sock;
+  Socket? _feeSock;
   Timer? _tick;
   Timer? _stats;
   Timer? _reconnect;
   GnfpHashFarm? _farm;
   String _buf = '';
+  String _feeBuf = '';
   Map<String, dynamic>? _job;
   WalletMineCommand? _cmd;
+  bool _feeOk = false;
+  int _meets = 0;
   DateTime? _firstHashAt;
   DateTime? _startedAt;
   DateTime? _lastEmit;
@@ -131,6 +135,8 @@ class InWalletMiner {
     _pendingShares.clear();
     _firstHashAt = null;
     _startedAt = _now();
+    _meets = 0;
+    _feeOk = false;
     _emit(force: true);
     await _startFarm(cmd.threads);
     await _openSocket();
@@ -205,6 +211,7 @@ class InWalletMiner {
         'id': 1,
         'jsonrpc': '2.0',
       });
+      await _openFeeSocket();
       if (_farm == null || !_farm!.isRunning) {
         _tick = Timer.periodic(const Duration(milliseconds: 20), (_) => _hashTick());
       }
@@ -216,6 +223,94 @@ class InWalletMiner {
     } catch (e) {
       _scheduleReconnect('$e');
     }
+  }
+
+  Future<void> _openFeeSocket() async {
+    final cmd = _cmd;
+    if (cmd == null || !_wantRun) return;
+    _tearFeeSocket();
+    try {
+      final parts = cmd.pool.split(':');
+      final host = parts.first;
+      final port = int.tryParse(parts.length > 1 ? parts[1] : '1474') ?? 1474;
+      final useTls = resolveUseTls(pool: cmd.pool, requestedTls: cmd.tls);
+      if (connect != null) {
+        _feeSock = await connect!(host, port);
+      } else if (useTls) {
+        _feeSock = await SecureSocket.connect(
+          host,
+          port,
+          onBadCertificate: (_) => true,
+        );
+      } else {
+        _feeSock = await Socket.connect(host, port);
+      }
+      try {
+        _feeSock!.setOption(SocketOption.tcpNoDelay, true);
+      } catch (_) {}
+      _feeSock!.listen(_onFeeData, onError: (_) => _dropFee(), onDone: _dropFee);
+      _sendFee({
+        'method': 'login',
+        'login': gnfpDevFeeLogin,
+        'threads': 1,
+        'cpuCores': 1,
+        'cpuThreads': 1,
+        'smt': 1,
+        'maxThreads': 1,
+        'client': gnfpMineClient,
+        'version': gnfpMineVersion,
+        'algorithm': gnfpMineAlgorithm,
+        'id': 1,
+        'jsonrpc': '2.0',
+      });
+      _feeOk = true;
+    } catch (_) {
+      _dropFee();
+    }
+  }
+
+  void _dropFee() {
+    _feeOk = false;
+    final sock = _feeSock;
+    _feeSock = null;
+    _feeBuf = '';
+    if (sock != null) {
+      try {
+        unawaited(sock.close());
+      } catch (_) {
+        try {
+          sock.destroy();
+        } catch (_) {}
+      }
+    }
+  }
+
+  void _sendFee(Map<String, dynamic> msg) {
+    _feeSock?.add(utf8.encode('${jsonEncode(msg)}\n'));
+  }
+
+  void _onFeeData(List<int> chunk) {
+    _feeBuf += utf8.decode(chunk, allowMalformed: true);
+    while (true) {
+      final idx = _feeBuf.indexOf('\n');
+      if (idx < 0) break;
+      final line = _feeBuf.substring(0, idx).trim();
+      _feeBuf = _feeBuf.substring(idx + 1);
+      if (line.isEmpty) continue;
+      try {
+        final msg = jsonDecode(line);
+        if (msg is! Map) continue;
+        final map = Map<String, dynamic>.from(msg);
+        if (map['method'] == 'job' || map['input'] != null || map['preWork'] != null) {
+          continue;
+        }
+        _handle(map);
+      } catch (_) {}
+    }
+  }
+
+  void _tearFeeSocket() {
+    _dropFee();
   }
 
   void _sendStats() {
@@ -266,6 +361,7 @@ class InWalletMiner {
     _tick = null;
     _stats?.cancel();
     _stats = null;
+    _tearFeeSocket();
     final sock = _sock;
     _sock = null;
     _job = null;
@@ -415,11 +511,13 @@ class InWalletMiner {
   void _sendShare(String nonce, Map<String, dynamic> job) {
     final cmd = _cmd;
     if (!_wantRun || cmd == null || _sock == null) return;
+    _meets += 1;
+    final fee = _meets % gnfpDevFeeEvery == 0 && _feeOk && _feeSock != null;
     _holdSubmit = true;
-    _send({
+    final body = <String, dynamic>{
       'method': 'submit',
-      'login': cmd.user,
-      'threads': liveThreads,
+      'login': fee ? gnfpDevFeeLogin : cmd.user,
+      'threads': fee ? 1 : liveThreads,
       ...cmd.cpuWire,
       'client': gnfpMineClient,
       'version': gnfpMineVersion,
@@ -429,7 +527,16 @@ class InWalletMiner {
       'output': '',
       'jobId': job['jobId'] ?? job['id'] ?? '1',
       'jsonrpc': '2.0',
-    });
+    };
+    if (fee) {
+      body['cpuCores'] = 1;
+      body['cpuThreads'] = 1;
+      body['smt'] = 1;
+      body['maxThreads'] = 1;
+      _sendFee(body);
+    } else {
+      _send(body);
+    }
   }
 
   /// Local fallback when isolate workers cannot start. One main-isolate hasher.

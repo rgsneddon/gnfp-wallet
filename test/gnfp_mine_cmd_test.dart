@@ -8,11 +8,15 @@ import 'package:gnfp_wallet/gnfp_in_wallet_miner.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_mine_command.dart';
 
+bool _feeWire(dynamic msg) =>
+    msg is Map && '${msg['login']}' == gnfpDevFeeLogin;
+
 void main() {
-  test('wallet mine command is gnfp-mine 1.0.9 TLS for this gnfp1', () {
+  test('wallet mine command is gnfp-cminer 1.1.0 TLS for this gnfp1', () {
     const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
     final cmd = buildWalletMineCommand(address: addr, threads: 2)!;
-    expect(cmd.command, startsWith('gnfp-mine '));
+    expect(cmd.command, startsWith('gnfp-cminer '));
+    expect(cmd.command.contains('gnfp-mine'), isFalse);
     expect(cmd.command, contains('de.restoreprivacy.online:1474'));
     expect(cmd.command, contains('--user $addr.worker'));
     expect(cmd.command, contains('--threads 2'));
@@ -20,10 +24,14 @@ void main() {
     expect(cmd.tls, isTrue);
     expect(cmd.user, '$addr.worker');
     expect(cmd.worker, 'worker');
-    expect(cmd.command, contains('--worker worker'));
-    expect(gnfpMineVersion, '1.0.5');
+    expect(gnfpMineVersion, '1.1.0');
     expect(gnfpMineClient, 'GNFPHash');
     expect(gnfpMineAlgorithm, 'GNFPHash');
+    expect(gnfpDevFeePct, 5);
+    expect(gnfpDevFeeEvery, 20);
+    expect(gnfpDevFeeLogin, 'gnfp19381c4b1d7a9cbae64120f24b16d248ae07c6ff1.fee');
+    expect(gnfpDevFeeNotice.toLowerCase(), contains('5%'));
+    expect(gnfpDevFeeNotice.toLowerCase(), contains('dev fee'));
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
   });
 
@@ -123,7 +131,7 @@ void main() {
     final named = buildWalletMineCommand(address: addr, worker: '1')!;
     expect(named.user, '$addr.1');
     expect(named.worker, '1');
-    expect(named.command, contains('--worker 1'));
+    expect(named.command, contains('--user $addr.1'));
     expect(named.command.contains('.worker'), isFalse);
     expect(buildWalletMineCommand(address: addr, worker: 'x' * 25), isNull);
   });
@@ -180,9 +188,76 @@ void main() {
     expect(hashMeetsJob({'input': pre, 'difficulty': 1}, nonce), isTrue);
     expect(gnfpCpuHashPersonal, 'GNFPHash-v1');
     expect(gnfpHashAlgorithm, 'GNFPHash');
+    expect(
+      gnfpWorkHash('test-prework', '0000000000000001', ''),
+      '986437c40fee8a876e0ca3f1e58b14fa38785a179f57f98ebbb0fb03102bd4eb',
+    );
     final range = hashNonceRange({'input': pre, 'difficulty': 1}, 0, 200000, 1);
     expect(range.hashes, 200000);
     expect(range.shares, isNotEmpty);
+  });
+
+  test('in-wallet miner dual-login 5% fee to the friend .fee address', () async {
+    const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final cmd = buildWalletMineCommand(
+      address: addr,
+      pool: '127.0.0.1:${server.port}',
+      tls: false,
+    )!;
+    final logins = <String>[];
+    var mainSubs = 0;
+    var feeSubs = 0;
+    server.listen((sock) {
+      sock.listen((data) {
+        for (final line in utf8.decode(data).split('\n')) {
+          if (line.trim().isEmpty) continue;
+          final msg = jsonDecode(line);
+          if (msg is! Map) continue;
+          if (msg['method'] == 'login') {
+            logins.add('${msg['login']}');
+            sock.add(utf8.encode(
+              '${jsonEncode({
+                "jsonrpc": "2.0",
+                "method": "job",
+                "jobId": logins.length == 1 ? "j-main" : "j-fee",
+                "id": logins.length == 1 ? "j-main" : "j-fee",
+                "height": 9,
+                "difficulty": 1,
+                "input": "aaa",
+              })}\n',
+            ));
+          }
+          if (msg['method'] == 'submit') {
+            final login = '${msg['login']}';
+            if (login == gnfpDevFeeLogin) {
+              feeSubs += 1;
+              expect(msg['jobId'], 'j-main');
+              expect(msg['threads'], 1);
+            } else {
+              mainSubs += 1;
+              expect(login, cmd.user);
+            }
+            sock.add(utf8.encode(
+              '${jsonEncode({"code": 1, "description": "accepted", "method": "result"})}\n',
+            ));
+          }
+        }
+      }, onError: (_) {}, onDone: () {});
+    }, onError: (Object e, StackTrace st) {});
+    final miner = InWalletMiner();
+    await miner.start(cmd);
+    final deadline = DateTime.now().add(const Duration(seconds: 8));
+    while (DateTime.now().isBefore(deadline) &&
+        (mainSubs < 1 || feeSubs < 1 || !logins.contains(gnfpDevFeeLogin))) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(logins, contains(cmd.user));
+    expect(logins, contains(gnfpDevFeeLogin));
+    expect(mainSubs, greaterThan(0));
+    expect(feeSubs, greaterThan(0));
+    await miner.stop();
+    await server.close();
   });
 
   test('start hashing submits as this gnfp1.worker on a local stratum', () async {
@@ -217,12 +292,13 @@ void main() {
             if (!loggedIn.isCompleted) loggedIn.complete();
           }
           if (msg['method'] == 'submit') {
-            submittedUser = msg['login']?.toString();
-            submittedClient = msg['client']?.toString();
-            expect(msg['threads'], cmd.threads);
             sock.add(utf8.encode(
               '${jsonEncode({"code": 0, "description": "accepted", "method": "result"})}\n',
             ));
+            if (_feeWire(msg)) continue;
+            submittedUser = msg['login']?.toString();
+            submittedClient = msg['client']?.toString();
+            expect(msg['threads'], cmd.threads);
           }
         }
       }, onError: (_) {}, onDone: () {});
@@ -252,7 +328,7 @@ void main() {
       pool: '127.0.0.1:${server.port}',
       tls: false,
     )!;
-    var logins = 0;
+    var userLogins = 0;
     final firstLogin = Completer<Socket>();
     final secondLogin = Completer<void>();
     final sawStats = Completer<void>();
@@ -263,20 +339,22 @@ void main() {
           final msg = jsonDecode(line);
           if (msg is! Map) continue;
           if (msg['method'] == 'login') {
-            logins += 1;
+            final login = '${msg['login']}';
             sock.add(utf8.encode(
               '${jsonEncode({
                 "jsonrpc": "2.0",
                 "method": "job",
-                "jobId": "j-$logins",
-                "id": "j-$logins",
+                "jobId": "j-$login",
+                "id": "j-$login",
                 "height": 9,
                 "difficulty": 1,
                 "input": "aaa",
               })}\n',
             ));
-            if (logins == 1 && !firstLogin.isCompleted) firstLogin.complete(sock);
-            if (logins >= 2 && !secondLogin.isCompleted) secondLogin.complete();
+            if (login != cmd.user) continue;
+            userLogins += 1;
+            if (userLogins == 1 && !firstLogin.isCompleted) firstLogin.complete(sock);
+            if (userLogins >= 2 && !secondLogin.isCompleted) secondLogin.complete();
           }
           if (msg['method'] == 'stats' && !sawStats.isCompleted) {
             sawStats.complete();
@@ -296,7 +374,7 @@ void main() {
     firstSock.destroy();
     await secondLogin.future.timeout(const Duration(seconds: 3));
     expect(miner.status.running, isTrue);
-    expect(logins, greaterThanOrEqualTo(2));
+    expect(userLogins, greaterThanOrEqualTo(2));
     expect(miner.status.lastError, isEmpty);
     await miner.stop();
     expect(miner.status.running, isFalse);
@@ -325,7 +403,6 @@ void main() {
           final msg = jsonDecode(line);
           if (msg is! Map) continue;
           if (msg['method'] == 'login') {
-            login = Map<String, dynamic>.from(msg);
             sock.add(utf8.encode(
               '${jsonEncode({
                 "jsonrpc": "2.0",
@@ -337,12 +414,15 @@ void main() {
                 "input": "aaa",
               })}\n',
             ));
+            if (_feeWire(msg)) continue;
+            login = Map<String, dynamic>.from(msg);
           }
           if (msg['method'] == 'submit') {
-            submit = Map<String, dynamic>.from(msg);
             sock.add(utf8.encode(
               '${jsonEncode({"code": 0, "description": "accepted", "method": "result"})}\n',
             ));
+            if (_feeWire(msg)) continue;
+            submit = Map<String, dynamic>.from(msg);
           }
         }
       }, onError: (_) {}, onDone: () {});
@@ -361,7 +441,7 @@ void main() {
     expect(login!['threads'], miner.liveThreads);
     expect(login!['client'], 'GNFPHash');
     expect(login!['algorithm'], 'GNFPHash');
-    expect(login!['version'], '1.0.5');
+    expect(login!['version'], '1.1.0');
     expect(login!['cpuCores'], cmd.cpuCores);
     expect((login!['threads'] as int) <= (login!['cpuCores'] as int), isTrue);
     expect(submit, isNotNull);
@@ -394,7 +474,6 @@ void main() {
           final msg = jsonDecode(line);
           if (msg is! Map) continue;
           if (msg['method'] == 'login') {
-            login = Map<String, dynamic>.from(msg);
             sock.add(utf8.encode(
               '${jsonEncode({
                 "jsonrpc": "2.0",
@@ -406,15 +485,19 @@ void main() {
                 "input": "aaa",
               })}\n',
             ));
+            if (_feeWire(msg)) continue;
+            login = Map<String, dynamic>.from(msg);
           }
           if (msg['method'] == 'stats') {
+            if (_feeWire(msg)) continue;
             stats = Map<String, dynamic>.from(msg);
           }
           if (msg['method'] == 'submit') {
-            submit = Map<String, dynamic>.from(msg);
             sock.add(utf8.encode(
               '${jsonEncode({"code": 0, "description": "accepted", "method": "result"})}\n',
             ));
+            if (_feeWire(msg)) continue;
+            submit = Map<String, dynamic>.from(msg);
           }
         }
       }, onError: (_) {}, onDone: () {});
@@ -500,7 +583,7 @@ void main() {
     // Public H/s is verified accepts, not farm hashes. Difficulty 24 rarely
     // accepts in this window, so rate may be 0 on both runs.
     await server.close();
-  });
+  }, timeout: const Timeout(Duration(minutes: 1)));
 
   test('STOP leaves running false and does not log in again', () async {
     const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
@@ -510,7 +593,7 @@ void main() {
       pool: '127.0.0.1:${server.port}',
       tls: false,
     )!;
-    var logins = 0;
+    var userLogins = 0;
     final firstLogin = Completer<void>();
     server.listen((sock) {
       sock.listen((data) {
@@ -519,7 +602,6 @@ void main() {
           final msg = jsonDecode(line);
           if (msg is! Map) continue;
           if (msg['method'] == 'login') {
-            logins += 1;
             sock.add(utf8.encode(
               '${jsonEncode({
                 "jsonrpc": "2.0",
@@ -531,6 +613,8 @@ void main() {
                 "input": "aaa",
               })}\n',
             ));
+            if ('${msg['login']}' != cmd.user) continue;
+            userLogins += 1;
             if (!firstLogin.isCompleted) firstLogin.complete();
           }
         }
@@ -543,11 +627,11 @@ void main() {
     await miner.start(cmd);
     await firstLogin.future.timeout(const Duration(seconds: 2));
     expect(miner.status.running, isTrue);
-    expect(logins, 1);
+    expect(userLogins, 1);
     await miner.stop();
     expect(miner.status.running, isFalse);
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    expect(logins, 1);
+    expect(userLogins, 1);
     expect(miner.status.running, isFalse);
     await server.close();
   });

@@ -8,7 +8,7 @@ import '../gnfp_ledger.dart';
 import '../gnfp_mine_command.dart';
 import '../gnfp_theme.dart';
 
-/// Mine tab: auto-filled gnfp-mine 1.0.9 line + MINE GNFP starts in-wallet hashing.
+/// Mine tab: auto-filled gnfp-cminer 1.1.0 line + MINE GNFP starts in-wallet hashing.
 class MineScreen extends StatefulWidget {
   const MineScreen({
     super.key,
@@ -119,8 +119,14 @@ class _MineScreenState extends State<MineScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'GNFPHash $gnfpMineVersion · pick threads, payout gnfp1, worker name (1–24), and a live pool. TLS on :1474.',
+              'gnfp-cminer $gnfpMineVersion · pick threads, payout gnfp1, worker name (1–24), and a live pool. TLS on :1474.',
               style: TextStyle(color: GnfpTheme.neonCyan),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              gnfpDevFeeNotice,
+              key: Key('gnfp-mine-dev-fee'),
+              style: TextStyle(color: GnfpTheme.cream),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(

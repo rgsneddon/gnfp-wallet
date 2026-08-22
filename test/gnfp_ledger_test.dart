@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gnfp_wallet/gnfp_analysis.dart';
 import 'package:gnfp_wallet/gnfp_bridge.dart';
+import 'package:gnfp_wallet/gnfp_build_stamp.dart';
 import 'package:gnfp_wallet/gnfp_cpu_hash.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
 import 'package:gnfp_wallet/gnfp_pool_client.dart';
@@ -314,9 +315,13 @@ void main() {
     expect(versionFromCommitCount(11).numeric, '0.1.1');
     expect(GnfpVersion.isLegacyPin('0.1.0'), isFalse);
     expect(GnfpVersion.isLegacyPin('0.0.9'), isFalse);
+    expect(GnfpVersion.isLegacyPin('0.1.9'), isFalse);
+    expect(GnfpVersion.isLegacyPin('0.2.0'), isFalse);
     expect(GnfpVersion.isLegacyPin('0.1.10'), isTrue);
     expect(GnfpVersion.isLegacyPin('1.1.13'), isTrue);
     expect(GnfpVersion.compare('0.1.0', '0.0.9'), greaterThan(0));
+    expect(kGnfpPackageVersion, '0.2.0');
+    expect(GnfpVersion.isLegacyPin(kGnfpPackageVersion), isFalse);
   });
 
   test('default GnfpPoolClient sets connectionTimeout so hung TLS cannot look like forever Network Tip', () {

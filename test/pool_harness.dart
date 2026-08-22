@@ -48,6 +48,7 @@ Future<PoolHandle> startShippedPool() async {
       'GNFP_PRIVACY_SALT': 'test-gnfp-privacy-salt',
       'GNFP_STRATUM_PORT': '0',
       'GNFP_HTTP_PORT': '0',
+      'GNFP_HTTP_MINE': '1',
     },
   );
   final line = await proc.stdout

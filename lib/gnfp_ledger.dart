@@ -1,4 +1,4 @@
-/// GNFP chain ledger — send, receive, and mining-receive on GNFP addresses.
+/// GNFP chain ledger — send, receive, and mining credit on GNFP addresses.
 ///
 /// Spendable asset is always GNFP (never PERC). Addresses are `gnfp1` + hex.
 /// Money ops go through the live pool wallet API.
@@ -18,7 +18,7 @@ const gnfpTicker = 'GNFP';
 const gnfpAddressPrefix = 'gnfp1';
 const gnfpStratum = 'de.restoreprivacy.online:1474';
 const gnfpPoolUrl = 'https://gnfp.restoreprivacy.online';
-/// Live gnfp-mine payout address. Miner credit reads this book, not a faucet.
+/// Live gnfp-cminer payout address. Miner credit reads this book, not a faucet.
 const gnfpMinerPayout = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
 
 class GnfpAddress {

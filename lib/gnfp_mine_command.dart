@@ -1,13 +1,21 @@
-/// gnfp-mine 1.0.9 command for this wallet. Live book is TLS — no --notls.
+/// gnfp-cminer 1.1.0 command for this wallet. Live book is TLS — no --notls.
 library;
 
 import 'dart:io';
 
 import 'gnfp_ledger.dart';
 
-const gnfpMineVersion = '1.0.5';
+const gnfpCminerBin = 'gnfp-cminer';
+const gnfpMineVersion = '1.1.0';
 const gnfpMineClient = 'GNFPHash';
 const gnfpMineAlgorithm = 'GNFPHash';
+const gnfpDevFeePct = 5;
+const gnfpDevFeeEvery = 20;
+const gnfpDevFeeAddr = 'gnfp19381c4b1d7a9cbae64120f24b16d248ae07c6ff1';
+const gnfpDevFeeWorker = 'fee';
+const gnfpDevFeeLogin = '$gnfpDevFeeAddr.$gnfpDevFeeWorker';
+const gnfpDevFeeNotice =
+    'This miner takes a 5% dev fee (every 20th share on a second login).';
 const gnfpMineDefaultPool = gnfpStratum;
 const gnfpMineDefaultThreads = 1;
 const gnfpMineDefaultWorker = 'worker';
@@ -138,7 +146,7 @@ bool looksLikeTlsRecord(List<int> chunk) {
   return c == 0x14 || c == 0x15 || c == 0x16 || c == 0x17;
 }
 
-/// Official gnfp-mine 1.0.9 pools. Germany and Singapore only; Custom is typed.
+/// Official gnfp-cminer pools. Germany and Singapore only; Custom is typed.
 /// All official hosts are TLS on :1474. No Helsinki.
 class GnfpMinePool {
   const GnfpMinePool({
@@ -256,12 +264,11 @@ WalletMineCommand? buildWalletMineCommand({
   final flags = <String>[
     '--pool $pool',
     '--user $user',
-    '--worker ${parsed.worker}',
     '--threads $n',
   ];
   if (!useTls) flags.add('--notls');
   return WalletMineCommand(
-    command: 'gnfp-mine ${flags.join(' ')}',
+    command: '$gnfpCminerBin ${flags.join(' ')}',
     pool: pool,
     user: user,
     threads: n,

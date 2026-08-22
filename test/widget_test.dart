@@ -150,10 +150,15 @@ void main() {
     expect(find.byKey(const Key('gnfp-mine-start')), findsOneWidget);
     expect(find.text('MINE GNFP'), findsOneWidget);
     final cmd = tester.widget<SelectableText>(find.byKey(const Key('gnfp-miner-cmd'))).data ?? '';
+    expect(cmd, startsWith('gnfp-cminer '));
+    expect(cmd.contains('gnfp-mine'), isFalse);
     expect(cmd, contains('de.restoreprivacy.online:1474'));
     expect(cmd.contains('--notls'), isFalse);
     expect(cmd, contains('--user'));
     expect(cmd, contains('.worker'));
+    expect(find.byKey(const Key('gnfp-mine-dev-fee')), findsOneWidget);
+    expect(find.textContaining('5%'), findsWidgets);
+    expect(find.textContaining('dev fee'), findsWidgets);
   });
 
   testWidgets('phone-width wallet paints full balance above the send box', (tester) async {

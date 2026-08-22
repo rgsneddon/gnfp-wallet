@@ -107,6 +107,8 @@ void main() {
     expect(await cli(['mine-cmd', '--threads', '2']), 0);
     final cmd = buildWalletMineCommand(address: restored.value, threads: 2)!;
     expect(out.toString().trim(), cmd.command);
+    expect(out.toString(), contains('gnfp-cminer'));
+    expect(out.toString().contains('gnfp-mine'), isFalse);
     expect(out.toString(), contains('de.restoreprivacy.online:1474'));
     expect(out.toString(), contains(restored.value));
   });

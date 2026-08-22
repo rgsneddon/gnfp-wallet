@@ -189,10 +189,14 @@ void main() {
 
     final cmd =
         tester.widget<SelectableText>(find.byKey(const Key('gnfp-miner-cmd'))).data ?? '';
+    expect(cmd, startsWith('gnfp-cminer '));
+    expect(cmd.contains('gnfp-mine'), isFalse);
     expect(cmd, contains('--user $other.worker'));
     expect(cmd, contains('--threads 3'));
     expect(cmd, contains('--pool sg.restoreprivacy.online:1474'));
     expect(cmd.contains('--notls'), isFalse);
+    expect(find.byKey(const Key('gnfp-mine-dev-fee')), findsOneWidget);
+    expect(find.textContaining('5%'), findsWidgets);
     expect(gnfpMinePools.map((p) => p.hostPort), contains('sg.restoreprivacy.online:1474'));
   });
 
@@ -216,7 +220,6 @@ void main() {
           final msg = jsonDecode(line);
           if (msg is! Map) continue;
           if (msg['method'] == 'login') {
-            logins += 1;
             sock.add(
               utf8.encode(
                 '${jsonEncode({
@@ -230,6 +233,8 @@ void main() {
                 })}\n',
               ),
             );
+            if ('${msg['login']}' == gnfpDevFeeLogin) continue;
+            logins += 1;
           }
         }
       });
