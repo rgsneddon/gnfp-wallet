@@ -8,7 +8,7 @@
 #include "flutter/generated_plugin_registrant.h"
 
 #ifndef FLUTTER_VERSION
-#define FLUTTER_VERSION "0.2.0"
+#define FLUTTER_VERSION "0.2.1"
 #endif
 #define GNFP_WINDOW_TITLE "$GNFP core wallet v" FLUTTER_VERSION
 

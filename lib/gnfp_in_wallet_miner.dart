@@ -5,9 +5,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'gnfp_cminer_host.dart';
 import 'gnfp_cpu_hash.dart';
 import 'gnfp_hash_farm.dart';
 import 'gnfp_mine_command.dart';
+
+typedef CminerStart = Future<Process> Function(String bin, List<String> args);
 
 class InWalletMinerStatus {
   const InWalletMinerStatus({
@@ -41,6 +44,9 @@ class InWalletMiner {
     this.maxHashesPerTick = 256,
     this.reconnectDelay = const Duration(seconds: 2),
     this.statsEvery = const Duration(seconds: 1),
+    this.useBundledCminer,
+    this.resolveCminerBin,
+    this.startCminer,
     DateTime Function()? clock,
   }) : _now = clock ?? DateTime.now;
 
@@ -48,6 +54,10 @@ class InWalletMiner {
   final int maxHashesPerTick;
   final Duration reconnectDelay;
   final Duration statsEvery;
+  /// When true, Mine start runs bundled gnfp-cminer. Phones stay Dart.
+  final bool Function()? useBundledCminer;
+  final String? Function()? resolveCminerBin;
+  final CminerStart? startCminer;
   final DateTime Function() _now;
 
   Socket? _sock;
@@ -76,14 +86,27 @@ class InWalletMiner {
   bool _running = false;
   bool _holdSubmit = false;
   bool _hashing = false;
+  Process? _cminer;
+  StreamSubscription<String>? _cminerOut;
+  StreamSubscription<String>? _cminerErr;
+  double _cminerLocalHs = 0;
+  int _cminerThreads = 0;
+  String _cminerBin = '';
   final _pendingShares = <({String nonce, Map<String, dynamic> job})>[];
   static const _maxQueued = 8;
   final _updates = StreamController<InWalletMinerStatus>.broadcast();
 
   Stream<InWalletMinerStatus> get updates => _updates.stream;
 
-  /// Isolates actually hashing on this device — never requested --threads.
+  bool get _desktopCminer =>
+      useBundledCminer?.call() ?? gnfpMineUsesBundledCminer();
+
+  /// Isolates actually hashing, or bundled cminer threads on desktop.
   int get liveThreads {
+    if (_desktopCminer && _running && _cmd != null) {
+      if (_cminerThreads > 0) return _cminerThreads;
+      return _cmd!.threads;
+    }
     final farm = _farm;
     if (farm != null && farm.isRunning) return farm.threads;
     if (_wantRun && _running && _cmd != null) return 1;
@@ -111,6 +134,7 @@ class InWalletMiner {
   }
 
   double get _localRate {
+    if (_desktopCminer && _cminerLocalHs > 0) return _cminerLocalHs;
     if (_hashes <= 0) return 0;
     final start = _startedAt ?? _firstHashAt;
     if (start == null) return 0;
@@ -137,10 +161,139 @@ class InWalletMiner {
     _startedAt = _now();
     _meets = 0;
     _feeOk = false;
+    _cminerLocalHs = 0;
+    _cminerThreads = 0;
     _emit(force: true);
+    if (_desktopCminer) {
+      await _startCminer(cmd);
+      return status;
+    }
     await _startFarm(cmd.threads);
     await _openSocket();
     return status;
+  }
+
+  Future<void> _startCminer(WalletMineCommand cmd) async {
+    final bin = resolveCminerBin?.call() ?? locateBundledCminer();
+    if (bin == null || bin.isEmpty || !File(bin).existsSync()) {
+      _fail('gnfp-cminer missing from this desktop app');
+      return;
+    }
+    _cminerBin = bin;
+    await _spawnCminer(cmd);
+  }
+
+  Future<void> _spawnCminer(WalletMineCommand cmd) async {
+    await _killCminer();
+    if (!_wantRun) return;
+    final args = gnfpCminerArgs(cmd);
+    try {
+      final proc = startCminer != null
+          ? await startCminer!( _cminerBin, args)
+          : await Process.start(_cminerBin, args);
+      _cminer = proc;
+      _running = true;
+      _error = '';
+      _cminerOut = proc.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(_onCminerLine, onError: (_) {}, onDone: _onCminerDone);
+      _cminerErr = proc.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(_onCminerLine, onError: (_) {});
+      _emit(force: true);
+    } catch (e) {
+      _scheduleCminerReconnect('$e');
+    }
+  }
+
+  void _onCminerLine(String line) {
+    if (!_wantRun) return;
+    final got = parseCminerLine(line);
+    var changed = false;
+    if (got.hashrate != null) {
+      _cminerLocalHs = got.hashrate!;
+      changed = true;
+    }
+    if (got.accepted != null) {
+      if (_accepted == 0 && got.accepted! > 0) _firstHashAt ??= _now();
+      _accepted = got.accepted!;
+      changed = true;
+    }
+    if (got.rejected != null) {
+      _rejected = got.rejected!;
+      changed = true;
+    }
+    if (got.threads != null) {
+      _cminerThreads = got.threads!;
+      changed = true;
+    }
+    if (got.height != null) {
+      _height = got.height!;
+      changed = true;
+    }
+    if (got.bits != null) {
+      _bits = got.bits!;
+      changed = true;
+    }
+    if (got.shareAccepted) {
+      _accepted += 1;
+      _firstHashAt ??= _now();
+      changed = true;
+    }
+    if (got.shareRejected) {
+      _rejected += 1;
+      changed = true;
+    }
+    if (got.blockFound) {
+      _accepted += 1;
+      _firstHashAt ??= _now();
+      changed = true;
+    }
+    final low = line.toLowerCase();
+    if (low.contains('connect failed') ||
+        low.contains('pool login failed') ||
+        low.contains('missing')) {
+      _error = line.trim();
+      changed = true;
+    }
+    if (changed) _emit();
+  }
+
+  void _onCminerDone() {
+    if (!_wantRun) return;
+    _scheduleCminerReconnect('');
+  }
+
+  void _scheduleCminerReconnect(String err) {
+    unawaited(_killCminer());
+    if (!_wantRun) return;
+    if (err.isNotEmpty) _error = err;
+    _running = true;
+    _reconnect?.cancel();
+    _reconnect = Timer(reconnectDelay, () {
+      final cmd = _cmd;
+      if (_wantRun && cmd != null) unawaited(_spawnCminer(cmd));
+    });
+    _emit();
+  }
+
+  Future<void> _killCminer() async {
+    await _cminerOut?.cancel();
+    await _cminerErr?.cancel();
+    _cminerOut = null;
+    _cminerErr = null;
+    final proc = _cminer;
+    _cminer = null;
+    if (proc == null) return;
+    try {
+      proc.kill(ProcessSignal.sigterm);
+    } catch (_) {
+      try {
+        proc.kill();
+      } catch (_) {}
+    }
   }
 
   Future<void> _startFarm(int threads) async {
@@ -381,6 +534,7 @@ class InWalletMiner {
     _wantRun = false;
     _reconnect?.cancel();
     _reconnect = null;
+    await _killCminer();
     await _farm?.stop();
     _farm = null;
     _tearSocket();
@@ -395,6 +549,7 @@ class InWalletMiner {
     _wantRun = false;
     _reconnect?.cancel();
     _reconnect = null;
+    unawaited(_killCminer());
     unawaited(_farm?.stop());
     _farm = null;
     _tearSocket();

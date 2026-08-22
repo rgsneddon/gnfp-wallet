@@ -27,8 +27,8 @@ DEFAULT_APP = (
 DEFAULT_IDENTITY = "Developer ID Application: Russell Sneddon (SFCBP95595)"
 DEFAULT_KEY_DIR = Path.home() / "Library/Developer/perccent-codesign"
 ENTITLEMENTS = ROOT / "macos" / "Runner" / "Release.entitlements"
-PIN = "0.2.0"
-BUILD_NUMBER = "20"
+PIN = "0.2.1"
+BUILD_NUMBER = "21"
 
 
 def run(cmd: list[str]) -> None:
@@ -90,6 +90,9 @@ def sign_app(app: Path, identity: str) -> None:
         sign_path(p, identity, None)
 
     main_bin = app / "Contents/MacOS/gnfp_wallet"
+    cminer = app / "Contents/MacOS/gnfp-cminer"
+    if cminer.is_file():
+        sign_path(cminer, identity, None)
     if main_bin.is_file():
         sign_path(main_bin, identity, ENTITLEMENTS)
     sign_path(app, identity, ENTITLEMENTS)

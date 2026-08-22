@@ -216,6 +216,7 @@
 				33CC10EB2044A3C60003C045 /* Resources */,
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
+				A5C1NE012044C6BA0003C001 /* Copy gnfp-cminer */,
 			);
 			buildRules = (
 			);
@@ -341,6 +342,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"$FLUTTER_ROOT\"/packages/flutter_tools/bin/macos_assemble.sh && touch Flutter/ephemeral/tripwire";
+		};
+		A5C1NE012044C6BA0003C001 /* Copy gnfp-cminer */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy gnfp-cminer";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nSRC=\"${PROJECT_DIR}/../pack/cminer/macos\"\nDST=\"${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME}/Contents/MacOS\"\nif [ -x \"$SRC/gnfp-cminer\" ]; then\n  mkdir -p \"$DST\"\n  cp -f \"$SRC/gnfp-cminer\" \"$DST/\"\n  chmod +x \"$DST/gnfp-cminer\"\n  if ls \"$SRC\"/*.dylib >/dev/null 2>&1; then cp -f \"$SRC\"/*.dylib \"$DST/\"; fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

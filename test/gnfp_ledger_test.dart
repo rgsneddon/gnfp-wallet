@@ -320,7 +320,7 @@ void main() {
     expect(GnfpVersion.isLegacyPin('0.1.10'), isTrue);
     expect(GnfpVersion.isLegacyPin('1.1.13'), isTrue);
     expect(GnfpVersion.compare('0.1.0', '0.0.9'), greaterThan(0));
-    expect(kGnfpPackageVersion, '0.2.0');
+    expect(kGnfpPackageVersion, '0.2.1');
     expect(GnfpVersion.isLegacyPin(kGnfpPackageVersion), isFalse);
   });
 

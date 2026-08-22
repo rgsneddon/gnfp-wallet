@@ -8,7 +8,7 @@
 #include "utils.h"
 
 #ifndef FLUTTER_VERSION
-#define FLUTTER_VERSION "0.2.0"
+#define FLUTTER_VERSION "0.2.1"
 #endif
 
 static std::wstring GnfpCoreWalletTitle() {

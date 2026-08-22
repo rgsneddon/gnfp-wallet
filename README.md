@@ -5,8 +5,8 @@ $GNFP privacy wallet. Spendable asset is GNFP. Proof of work only.
 - Pool: https://gnfp.restoreprivacy.online
 - Stratum: `de.restoreprivacy.online:1474` (TLS; official miner **gnfp-cminer 1.1.0** — https://github.com/rgsneddon/gnfp-cminer). Node **GNFPHash** / `gnfp-mine` is deprecated.
 - Coin: GNFP (not PERC, not Beam)
-- Current pin: **0.2.0** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.2.0
-- Mine tab: same GNFPHash-v1 wire as gnfp-cminer, declared **5% miner** dual-login fee (not a pool tax; the book still takes **1%** of formed blocks).
+- Current pin: **0.2.1** — https://github.com/rgsneddon/gnfp-wallet/releases/tag/v0.2.1
+- Mine tab: desktop **MINE GNFP** runs bundled **gnfp-cminer 1.1.0**; iPhone/Android keep the Dart hasher. Same GNFPHash-v1 wire, declared **5% miner** dual-login fee (not a pool tax; the book still takes **1%** of formed blocks).
 - Operator status (all pins / all platforms): https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md
 
 ## Install
@@ -21,7 +21,7 @@ iPhone and iPad do not show the Applications dialog: the IPA is installed into t
 
 **iPhone / iPad** — unsigned `gnfp-wallet-0.1.0-ios.ipa` / `gnfp-wallet-0.1.0-ipad.ipa` (sideload).
 
-**Windows / Linux / Arch** — attach `gnfp-wallet-<pin>-windows.zip`, `-linux.zip`, `-archlinux.zip` to the **same** tag the Mac already used. Current GUI pin **0.2.0** has Darwin/Android/iOS on `v0.2.0`; Windows/Linux/Arch are laptop leftover. Do **not** rebuild **0.1.9**. Pins live only in https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md (`WINDOWS_HANDOFF.md` in this repo is a pointer).
+**Windows / Linux / Arch** — attach `gnfp-wallet-<pin>-windows.zip`, `-linux.zip`, `-archlinux.zip` to the **same** tag the Mac already used. Current GUI pin **0.2.1** has Darwin/Android/iOS on `v0.2.1`; Windows/Linux/Arch are laptop leftover. Do **not** rebuild **0.2.0**. Pins live only in https://github.com/rgsneddon/handoff/blob/main/HANDOFF.md (`WINDOWS_HANDOFF.md` in this repo is a pointer).
 
 ```
 flutter pub get
@@ -71,7 +71,7 @@ chmod +x pack/gnfp-cli
 ```
 usage: gnfp-cli [-h] {new,restore,show,balance,history,tip,send,mine-cmd} ...
 
-$GNFP core wallet v0.2.0 (cli)
+$GNFP core wallet v0.2.1 (cli)
 ```
 
 The CLI pin is the same as the GUI pin (`kGnfpPackageVersion` / `pubspec.yaml`). `--version` / `-V` prints that line. There is no sibling CLI tag.
@@ -122,8 +122,10 @@ macOS GitHub disk image (Developer ID + notary + drag-to-Applications):
 
 ```
 python3 pack/macos/sign_and_notarize.py --build
-gh release upload v0.2.0 dist/gnfp-wallet-0.2.0-macos.dmg dist/gnfp-wallet-0.2.0-macos.zip --clobber
+gh release upload v0.2.1 dist/gnfp-wallet-0.2.1-macos.dmg dist/gnfp-wallet-0.2.1-macos.zip --clobber
 ```
+
+0.2.1: desktop **MINE GNFP** spawns bundled gnfp-cminer 1.1.0. iPhone/Android keep the Dart hasher. Same 5% miner dual-login fee. `HASH_TX_LIVE` stays **0**. Do not rebuild 0.2.0.
 
 0.2.0: official in-wallet miner is **gnfp-cminer 1.1.0** (same GNFPHash-v1 wire). Mine tab states the **5% miner** dual-login fee. That is **not** a pool tax — formed blocks still take **1%** for the operator. Node GNFPHash / `gnfp-mine` is deprecated. `HASH_TX_LIVE` stays **0**. Do not rebuild 0.1.9.
 

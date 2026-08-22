@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gnfp_wallet/gnfp_cminer_host.dart';
 import 'package:gnfp_wallet/gnfp_cpu_hash.dart';
 import 'package:gnfp_wallet/gnfp_in_wallet_miner.dart';
 import 'package:gnfp_wallet/gnfp_ledger.dart';
@@ -33,6 +34,194 @@ void main() {
     expect(gnfpDevFeeNotice.toLowerCase(), contains('5%'));
     expect(gnfpDevFeeNotice.toLowerCase(), contains('dev fee'));
     expect(buildWalletMineCommand(address: 'not-an-address'), isNull);
+  });
+
+  test('desktop Mine uses bundled gnfp-cminer; phones keep Dart hasher', () {
+    expect(
+      gnfpMineUsesBundledCminer(
+        isMacOS: true,
+        isIOS: false,
+        isAndroid: false,
+        isWindows: false,
+        isLinux: false,
+        flutterTest: false,
+      ),
+      isTrue,
+    );
+    expect(
+      gnfpMineUsesBundledCminer(
+        isWindows: true,
+        isMacOS: false,
+        isIOS: false,
+        isAndroid: false,
+        isLinux: false,
+        flutterTest: false,
+      ),
+      isTrue,
+    );
+    expect(
+      gnfpMineUsesBundledCminer(
+        isLinux: true,
+        isMacOS: false,
+        isWindows: false,
+        isIOS: false,
+        isAndroid: false,
+        flutterTest: false,
+      ),
+      isTrue,
+    );
+    expect(
+      gnfpMineUsesBundledCminer(
+        isIOS: true,
+        isAndroid: false,
+        isMacOS: false,
+        isWindows: false,
+        isLinux: false,
+        flutterTest: false,
+      ),
+      isFalse,
+    );
+    expect(
+      gnfpMineUsesBundledCminer(
+        isAndroid: true,
+        isIOS: false,
+        isMacOS: false,
+        isWindows: false,
+        isLinux: false,
+        flutterTest: false,
+      ),
+      isFalse,
+    );
+    const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
+    final cmd = buildWalletMineCommand(
+      address: addr,
+      pool: '127.0.0.1:1474',
+      tls: false,
+      threads: 3,
+      processors: 8,
+    )!;
+    expect(gnfpCminerArgs(cmd), [
+      '--pool',
+      '127.0.0.1:1474',
+      '--user',
+      '$addr.worker',
+      '--threads',
+      '3',
+      '--notls',
+    ]);
+    final got = parseCminerLine(
+      'hashrate=1234.5 H/s worker=$addr.worker accepted=9 rejected=1 blocks=0 threads=3 height=12 pool=127.0.0.1:1474',
+    );
+    expect(got.hashrate, 1234.5);
+    expect(got.accepted, 9);
+    expect(got.threads, 3);
+    expect(got.height, 12);
+    expect(parseCminerLine('accepted share ok').shareAccepted, isTrue);
+    final dir = Directory.systemTemp.createTempSync('gnfp-cminer-host-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File('${dir.path}/gnfp-cminer').writeAsStringSync('x');
+    expect(
+      locateBundledCminer(
+        resolvedExecutable: '${dir.path}/gnfp_wallet',
+        isWindows: false,
+      ),
+      '${dir.path}/gnfp-cminer',
+    );
+  });
+
+  test('desktop Mine start spawns bundled gnfp-cminer not GnfpHashFarm', () async {
+    const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
+    final bin = File('pack/cminer/macos/gnfp-cminer');
+    expect(bin.existsSync(), isTrue, reason: bin.path);
+    final cmd = buildWalletMineCommand(
+      address: addr,
+      pool: '127.0.0.1:1474',
+      tls: false,
+      threads: 2,
+      processors: 8,
+    )!;
+    String? spawnedBin;
+    List<String>? spawnedArgs;
+    final miner = InWalletMiner(
+      useBundledCminer: () => true,
+      resolveCminerBin: () => bin.absolute.path,
+      startCminer: (path, args) async {
+        spawnedBin = path;
+        spawnedArgs = List<String>.from(args);
+        return Process.start('bash', [
+          '-c',
+          'echo "GNFPHash C miner 1.1.0 (declared 5% fee, dual connection)"; '
+              'echo "tls://127.0.0.1:1474 user=$addr.worker threads=2 coin=GNFP algo=GNFPHash"; '
+              'echo "job j-1 height=9 diff=16 algo=GNFPHash workers=2"; '
+              'echo "hashrate=880000.0 H/s worker=$addr.worker accepted=4 rejected=0 blocks=0 threads=2 height=9 pool=127.0.0.1:1474"; '
+              'exec cat >/dev/null',
+        ]);
+      },
+    );
+    await miner.start(cmd);
+    expect(miner.status.running, isTrue);
+    expect(spawnedBin, bin.absolute.path);
+    expect(spawnedArgs, gnfpCminerArgs(cmd));
+    expect(spawnedArgs, isNot(contains('gnfp-mine')));
+    final deadline = DateTime.now().add(const Duration(seconds: 3));
+    while (DateTime.now().isBefore(deadline) && miner.status.accepted < 4) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(miner.status.accepted, 4);
+    expect(miner.liveThreads, 2);
+    expect(miner.status.localHashrate, 880000.0);
+    expect(miner.status.user, cmd.user);
+    await miner.stop();
+    expect(miner.status.running, isFalse);
+  });
+
+  test('phone Mine start still uses the Dart in-wallet hasher', () async {
+    const addr = 'gnfp18ff7e8b2f0ef3e96f598231638aafd5a5abc490c';
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final cmd = buildWalletMineCommand(
+      address: addr,
+      pool: '127.0.0.1:${server.port}',
+      tls: false,
+    )!;
+    String? client;
+    server.listen((sock) {
+      sock.listen((data) {
+        for (final line in utf8.decode(data).split('\n')) {
+          if (line.trim().isEmpty) continue;
+          final msg = jsonDecode(line);
+          if (msg is! Map) continue;
+          if (msg['method'] == 'login') {
+            client = msg['client']?.toString();
+            sock.add(utf8.encode(
+              '${jsonEncode({
+                "jsonrpc": "2.0",
+                "method": "job",
+                "jobId": "j-phone",
+                "id": "j-phone",
+                "height": 3,
+                "difficulty": 1,
+                "input": "aaa",
+              })}\n',
+            ));
+          }
+          if (msg['method'] == 'submit') {
+            sock.add(utf8.encode(
+              '${jsonEncode({"code": 1, "description": "accepted", "method": "result"})}\n',
+            ));
+          }
+        }
+      }, onError: (_) {}, onDone: () {});
+    }, onError: (Object e, StackTrace st) {});
+    final miner = InWalletMiner(useBundledCminer: () => false);
+    await miner.start(cmd);
+    final deadline = DateTime.now().add(const Duration(seconds: 4));
+    while (DateTime.now().isBefore(deadline) && miner.status.accepted < 1) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(client, 'GNFPHash');
+    expect(miner.status.accepted, greaterThan(0));
+    await miner.stop();
+    await server.close();
   });
 
   test('stale tls:false does not pin the public book to plaintext', () {

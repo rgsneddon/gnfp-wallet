@@ -126,3 +126,9 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+set(GNFP_CMINER "${CMAKE_CURRENT_SOURCE_DIR}/../pack/cminer/linux/gnfp-cminer")
+if(EXISTS "${GNFP_CMINER}")
+  install(PROGRAMS "${GNFP_CMINER}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
